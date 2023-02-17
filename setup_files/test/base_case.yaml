@@ -1,0 +1,27 @@
+descriptions:
+  name: "convnext"
+  exp_family: "simple_model"
+  splits:
+    - "all" # Run inference on all examples
+    # - "test"
+
+paths:
+  distances_file:       "data/source/son_distances.pkl"
+  splits_file:          "data/source/son_splits_ORIGINAL.geojson"
+  images_root:          "../../../data/datasets/SoN/images/"
+  train_dir:            "runs/simple_model/convnext_augments/2022-07-22_15:14:49/"
+  weights_file:         "train/outputs/states/epoch=04-val_loss=0.00.ckpt"
+
+hyperparams:
+  n_closest: 10  
+  batch_size: 32
+  workers: 4
+  gpu_nums:
+    - 0
+
+transforms:
+  test:
+    to_tensor: true          
+
+    size:
+      resize: 256    

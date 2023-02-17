@@ -1,0 +1,60 @@
+descriptions:
+  name: "CoOp"
+  exp_family: "son_few_shot"
+  id_col: 'ID'
+  splits:
+    - "train"
+    - "all"
+
+paths:
+  splits_file:          "../son_det/data/source/son_splits.geojson"
+  images_root:          "../../../data/datasets/SoN/images/"
+
+hyperparams:
+  epochs: 25
+  check_val_every_n: 1
+  batch_size: 1
+  workers: 16
+  gpu_nums:
+    - 0
+  coop:
+    classes:
+      - "beautiful"
+      - "ugly"
+    class_pos: "end"
+    m_words: 16
+    n_shots: 1    
+    ctx_init: "A photo of an area that is extremely" # "a photo of an area that is"
+    class_context: False
+  optim:
+    lr: 0.000025
+    decay: 0  
+
+transforms:
+  train:
+    to_tensor: true
+
+    size:
+      randomresizedcrop:
+        size: 224
+        scale: [0.6, 0.8]
+    
+    normalize:
+        method: "bicubic"
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.26130258, 0.27577711]
+
+    warps_and_distorts:
+      hflip: 0.5
+
+  test:
+    to_tensor: true
+
+    size:
+      resize:
+        size: 224
+
+    normalize:
+        method: "bicubic"
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.26130258, 0.27577711]

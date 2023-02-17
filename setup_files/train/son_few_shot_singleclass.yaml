@@ -1,0 +1,56 @@
+descriptions:
+  name: "single_class"
+  exp_family: "single_class"
+  id_col: 'ID'
+  splits:
+    - "train"
+
+paths:
+  splits_file:          "../son_det/data/source/son_splits.geojson"
+  images_root:          "../../../data/datasets/SoN/images/"
+
+hyperparams:
+  epochs: 50
+  check_val_every_n: 1
+  batch_size: 1
+  workers: 4
+  gpu_nums:
+    - 0
+  coop:
+    m_words: 16
+    n_shots: 1    
+    ctx_init: "a photo which depicts a landscape"
+  optim:
+    lr: 0.0000025
+    decay: 0  
+
+transforms:
+  train:
+    to_tensor: true
+
+    size:
+      randomresizedcrop:
+        size: 224
+        scale: [0.6, 0.8]
+    
+    normalize:
+        method: "bicubic"
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.26130258, 0.27577711]
+
+    warps_and_distorts:
+      hflip: 0.5
+
+      # randomposterize:
+      #   bits: 2
+      #   p: 0.1        
+ 
+      # jitter:
+      #   brightness: 0.03
+      #   contrast: 0.03
+      #   saturation: 0.03
+      #   hue: 0.03
+      
+      # randomgrayscale: 0.2
+
+      # rotation: 5
