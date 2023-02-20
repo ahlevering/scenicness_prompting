@@ -24,7 +24,7 @@ pts_with_bins.to_file("data/res4_splits.geojson", driver="GeoJSON")
 
 all_bins = set(set(pts_with_bins['bin']))
 
-for num in [25, 50, 75, 100, 150, 200, 250, 300, 400, 500]:
+for num in [25, 50, 75, 100, 175, 250, 325, 400, 500]:
     # Sample data from set
     averages = pts_with_bins['Average'].to_list()
     sampled_values = np.random.normal(loc=np.mean(averages), scale=np.std(averages), size=num)
