@@ -1,5 +1,5 @@
 from pathlib import Path
-import h3
+from h3 import h3
 import pandas as pd
 import geopandas as gpd
 import numpy as np
@@ -7,27 +7,32 @@ import csv
 
 np.random.seed(113)
 
-splits_file = "../son_det/data/source/son_splits.geojson"
-splits_gdf = gpd.read_file(splits_file)
-# splits_gdf = splits_gdf[:1000]
-resolution = 4
+bins_file = "data/son_pts_with_bins.geojson"
+if not Path(bins_file).exists():
+    splits_file = "../son_det/data/source/son_splits.geojson"
+    splits_gdf = gpd.read_file(splits_file)
+    # splits_gdf = splits_gdf[:1000]
+    resolution = 4
 
-out_dir = Path(f"data/splits/res_{resolution}")
+    def assign_hexbin(row):
+        row['bin'] = h3.geo_to_h3(row['Lat'], row['Lon'], resolution)
+        return row
+
+    pts_with_bins = splits_gdf.apply(assign_hexbin, axis=1) 
+    pts_with_bins.to_file(bins_file, driver="GeoJSON")
+else:
+    pts_with_bins = gpd.read_file(bins_file)
+
+out_dir = Path(f"data/splits/")
 out_dir.mkdir(exist_ok=True, parents=True)
-
-def assign_hexbin(row):
-    row['bin'] = h3.h3.geo_to_h3(row['Lat'], row['Lon'], resolution)
-    return row
-
-pts_with_bins = splits_gdf.apply(assign_hexbin, axis=1) 
-pts_with_bins.to_file("data/res4_splits.geojson", driver="GeoJSON")
 
 all_bins = set(set(pts_with_bins['bin']))
 
 for num in [25, 50, 75, 100, 175, 250, 325, 400, 500]:
     # Sample data from set
     averages = pts_with_bins['Average'].to_list()
-    sampled_values = np.random.normal(loc=np.mean(averages), scale=np.std(averages), size=num)
+    # sampled_values = np.random.normal(low=np.mean(averages), scale=np.std(averages), size=num)
+    sampled_values = np.random.uniform(low=np.min(averages), high=np.max(averages), size=num)
     values_clipped = np.clip(sampled_values, 1, 10) # Ensure values are within dataset bounds
 
     bins = []
