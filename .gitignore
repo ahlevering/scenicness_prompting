@@ -9,6 +9,8 @@ __pycache__/
 # Folders
 # data/
 runs/
+data/embeddings.pkl
+data/photo_df_scores.csv
 
 # Distribution / packaging
 .Python
