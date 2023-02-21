@@ -1,14 +1,11 @@
 from copy import deepcopy
 
-import numpy as np
-import clip
 import torch
 from torch import nn
 import pytorch_lightning as pl
-from torchvision.models import resnet50
-from codebase.pt_funcs.run_tracker import VarTrackerUntangling
+from codebase.experiment_tracking.run_tracker import VarTrackerCLIPExperiments
 
-class SONCLIPNet(nn.Module):
+class ContrastivePromptsModel(nn.Module):
     def __init__(self, clip_model, prompts=None):
         super().__init__()
         self.model = clip_model
@@ -59,18 +56,18 @@ class CLIPZeroShotModel(pl.LightningModule):
         self.out_dir = scatter_dir
 
         if 'train' in splits:
-            self.train_tracker = VarTrackerUntangling(self.out_dir, 'train', label_info)
+            self.train_tracker = VarTrackerCLIPExperiments(self.out_dir, 'train', label_info)
         if 'val' in splits:
-            self.val_tracker = VarTrackerUntangling(self.out_dir, 'val', label_info)
+            self.val_tracker = VarTrackerCLIPExperiments(self.out_dir, 'val', label_info)
         if 'test' in splits:
-            self.test_tracker = VarTrackerUntangling(self.out_dir, 'test', label_info)
+            self.test_tracker = VarTrackerCLIPExperiments(self.out_dir, 'test', label_info)
 
 ### General iteration functions ###
     def forward(self, x):
         x = self.net(x)
         return x
 
-    def iteration_forward(self, batch, tracker, split):                
+    def iteration_forward(self, batch, tracker, split):
         preds = self.net(batch['img']) * 10
 
         ## Get metadata
@@ -92,51 +89,20 @@ class CLIPZeroShotModel(pl.LightningModule):
         for attr in datapts:
             if length_is_one:
                 datapts[attr] = [int(datapts[attr])]
-                # ids = [int(ids)]         
             elif type(datapts[attr]) != list:
                 datapts[attr] = datapts[attr].squeeze()
             
             # Store into tracker
             tracker.variables[var_name].attrs[attr].extend(datapts[attr])
 
-        # tracker.variables[var_name].vars['ids'].extend(ids)
-
     def end_epoch(self, tracker):
+        ## Write outputs        
         tracker.store_epoch_metrics()
-        
-        ## Write outputs
         tracker.save_metrics_to_file()
         tracker.save_observations_to_file(self.current_epoch)
-        # tracker.save_scatterplot(self.current_epoch)
 
         ## Reset for next epoch
         tracker.reset_epoch_vars()
-        # tracker.print_results()
-
-### Training ###
-    def training_step(self, batch, batch_idx):
-        loss = self.iteration_forward(batch, self.train_tracker, 'train')
-        return loss
-
-    def training_epoch_end(self, train_outputs):
-        self.end_epoch(self.train_tracker)
-        if self.current_epoch == 0:
-            for param in self.net.parameters():
-                param.requires_grad = True        
-            
-### Validation ###
-    def on_validation_epoch_start(self):
-        ## Clear out val test run data ##
-        if self.current_epoch == 0:
-            self.val_tracker.reset_out_files()   
-
-    def validation_step(self, batch, batch_idx):
-        loss = self.iteration_forward(batch, self.val_tracker, 'val')
-        return loss
-
-    def validation_epoch_end(self, train_outputs):
-        self.end_epoch(self.val_tracker)
-        self.num_steps = 0
 
 ### Testing ###
     def test_step(self, batch, batch_idx):
@@ -146,7 +112,6 @@ class CLIPZeroShotModel(pl.LightningModule):
     def test_epoch_end(self, test_outputs):
         self.end_epoch(self.test_tracker)
         self.num_steps = 0
-
 
 class CLIPZeroShotPP2(CLIPZeroShotModel):
     def __init__(self, scatter_dir, net, run_name, label_info, splits):

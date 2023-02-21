@@ -4,13 +4,11 @@ import csv
 
 import pandas as pd
 import geopandas as gpd
-import numpy as np
 from sklearn import preprocessing
 from PIL import Image
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-import torch
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
 
@@ -27,11 +25,13 @@ def load_csv(fpath):
         return rows
 
 class SONData(Dataset):
-    def __init__(self, exp_data, sample_ids, imgs_root, transforms):
+    def __init__(self, exp_data, imgs_root, transforms, sample_ids=None, embeddings=None):
         self.images_root = imgs_root
-        self.sample_ids = sample_ids
+        
         self.transforms = transforms
         self.exp_data = exp_data
+        self.sample_ids = sample_ids
+        self.embeddings = embeddings
 
     def __getitem__(self, index):
         # Load labels
@@ -42,13 +42,12 @@ class SONData(Dataset):
             datapoint = self.exp_data.labels.iloc[index]
             point_id = datapoint['ID']
 
-        scenicness = float(datapoint['Average'])
+        if self.embeddings:
+            img = self.embeddings[str(point_id)]
+        else:
+            img = self.get_image(datapoint["folder_num"], point_id)
 
-        img_path = Path(self.images_root + f'{datapoint["folder_num"]}/' + str(point_id) +'.jpg')
-        # img_path = Path(self.images_root + f'{datapoint["folder_num"].values[0]}/' + str(point_id) +'.jpg')
-        # Load image
-        img = Image.open(img_path).convert('RGB')
-        img = self.transforms(img) # To list to append neighbouring images
+        scenicness = float(datapoint['Average'])
 
         return {'ids': point_id,
                 'lat': float(datapoint['Lat']),
@@ -56,6 +55,12 @@ class SONData(Dataset):
                 'img': img,
                 'gt': scenicness
             }
+    
+    def get_image(self, id, folder_num):
+        img_path = Path(self.images_root + f'{folder_num}/' + str(id) +'.jpg')
+        # img_path = Path(self.images_root + f'{datapoint["folder_num"].values[0]}/' + str(point_id) +'.jpg')
+        img = Image.open(img_path).convert('RGB')
+        img = self.transforms(img) # To list to append neighbouring images
 
     def __len__(self):
         if self.sample_ids:
@@ -124,14 +129,18 @@ class ClipDataLoader(pl.LightningDataModule):
         # self.dims = None    
         self.splits = None    
 
-    def setup_data_classes(self, splits_file, imgs_root, sample_files=None, id_col='ID', splits=['train'], train_transforms=None, test_transforms=None):
+    def setup_data_classes(self, splits_file, imgs_root, sample_files=None, embeddings=None, transforms=None, id_col='ID', splits=['train']):
         self.exp_data = self.container_class(splits_file)
+        if embeddings:
+            embeddings = load_pickle(embeddings)
 
         if 'all' in splits:
+            # exp_data, imgs_root, transforms, sample_ids=None, embeddings=None
             self.test_data = self.data_class(self.exp_data,
-                                             None,
-                                             imgs_root,
-                                             transforms=test_transforms)
+                                             imgs_root,                                             
+                                             transforms['test'],
+                                             sample_files,
+                                             embeddings)
 
         if 'train' in splits:
             # train_split_labels = self.exp_data.labels[self.exp_data.labels['split'].isin(['train'])]
@@ -139,7 +148,7 @@ class ClipDataLoader(pl.LightningDataModule):
             self.train_data = self.data_class(  self.exp_data,
                                                 train_sample_ids,
                                                 imgs_root,
-                                                transforms=train_transforms)
+                                                transforms=transforms['train'])
         self.splits = splits
 
     def train_dataloader(self):

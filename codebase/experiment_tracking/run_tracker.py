@@ -110,8 +110,7 @@ class VarTracker():
             if files:
                 [os.remove(f) for f in files]
 
-
-class VarTrackerUntangling():
+class VarTrackerCLIPExperiments():
     def __init__(self, out_dir, split, score_info):
         self.score_info = score_info
         self.split = split

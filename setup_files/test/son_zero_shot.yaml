@@ -1,0 +1,30 @@
+descriptions:
+  name: "ugly_beautiful_region"
+  exp_family: "son_zero_shot"
+  id_col: 'ID'
+  splits:
+    - "all"
+
+paths:
+  splits_file:          "data/son_pts_with_bins.geojson"
+  embeddings:           "data/embeddings.pkl"
+  images_root:          "../../../data/datasets/SoN/images/"
+
+hyperparams:
+  epochs: 1
+  batch_size: 128
+  workers: 32
+  gpu_num: 0
+
+transforms:
+  test:
+    to_tensor: true
+
+    size:
+      resize:
+        size: 224
+
+    normalize:
+        method: "bicubic"
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.26130258, 0.27577711]  

@@ -5,7 +5,7 @@ import torch
 from torch import nn
 import pytorch_lightning as pl
 from torchvision.models import resnet50
-from codebase.pt_funcs.run_tracker import VarTrackerUntangling
+from codebase.experiment_tracking.run_tracker import VarTrackerCLIPExperiments
 import clip
 from clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
 
@@ -289,11 +289,11 @@ class CLIPFewShotModule(pl.LightningModule):
         self.out_dir = scatter_dir
 
         if 'train' in splits:
-            self.train_tracker = VarTrackerUntangling(self.out_dir, 'train', label_info)
+            self.train_tracker = VarTrackerCLIPExperiments(self.out_dir, 'train', label_info)
         if 'val' in splits:
-            self.val_tracker = VarTrackerUntangling(self.out_dir, 'val', label_info)
+            self.val_tracker = VarTrackerCLIPExperiments(self.out_dir, 'val', label_info)
         if 'test' in splits or 'all' in splits:
-            self.test_tracker = VarTrackerUntangling(self.out_dir, 'test', label_info)
+            self.test_tracker = VarTrackerCLIPExperiments(self.out_dir, 'test', label_info)
 
 ### General iteration functions ###
     def forward(self, x):
