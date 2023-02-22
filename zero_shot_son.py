@@ -67,22 +67,24 @@ organizer.store_environment()
 organizer.store_codebase(['.py'])
 
 ##### SETUP MODEL #####
-contrastive_prompts = ["A photo of a natural area.",
-                        "A photo of snow capped mountains",
-                        "A photo of a scenic lake.",
-                        "A photo photo of a scenic and snowy wonderland",
-                        "A photo of an idilic landscape",
-                        "A photo of a field.",
-                        "A photo of an unremarkable rural area.",
-                        "A photo of an urban area.",
-                        "A photo of a highway.",
-                        "A photo of a construction area.",
-                        "A photo of vehicles.",
-                        "Man made metal structures."]
+all_data = ["A photo of a natural area.", 6,
+                        "A photo of snow capped mountains", 10,
+                        "A photo of a scenic lake.", 9,
+                        "A photo photo of a scenic and snowy wonderland", 10,
+                        "A photo of an idilic landscape", 9,
+                        "A photo of a field.", 6,
+                        "A photo of an unremarkable rural area.", 5,
+                        "A photo of an urban area.", 4,
+                        "A photo of a highway.", 1,
+                        "A photo of a construction area.", 1,
+                        "A photo of vehicles.", 1,
+                        "Man made metal structures.", 1,
+                        "An urban park", 5]
 
-promps_values = [1,2,2,2,2,0,0,-1,-1,-1,-1,-1]
-# contrastive_prompts = ["Photo of stuff.",
-#                         "Photo of a dinosaur."]
+
+contrastive_prompts = all_data[0:-2:2]
+promps_values = all_data[1:-1:2]
+
 prompts = torch.cat([clip.tokenize(p) for p in contrastive_prompts])
 prompts = prompts.to(device=exp_params['hyperparams']['gpu_num'])
 
