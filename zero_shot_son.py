@@ -10,7 +10,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.utilities.seed import seed_everything
 
 from codebase.pt_funcs.dataloaders import SONData, ClipDataLoader
-from codebase.pt_funcs.models_zero_shot import CLIPZeroShotModel, ContrastivePromptsNet
+from codebase.pt_funcs.models_zero_shot import CLIPZeroShotModel, ContrastiveManyPromptsNet
 from codebase.experiment_tracking.save_metadata import ExperimentOrganizer
     
 ##### SET GLOBAL OPTIONS ######
@@ -67,16 +67,27 @@ organizer.store_environment()
 organizer.store_codebase(['.py'])
 
 ##### SETUP MODEL #####
-contrastive_prompts = ["A photo of an extremely beautiful area.",
-                        "A photo of an extremely ugly area."]
+contrastive_prompts = ["A photo of a natural area.",
+                        "A photo of mountains",
+                        "A photo of a scenic lake.",
+                        "A photo of a field.",
+                        "A photo of an unremarkable rural area.",
+                        "A photo of an urban area.",
+                        "A photo of a highway.",
+                        "A photo of a construction area.",
+                        "A photo of vehicles."]
+
+promps_values = [1,1,1,0,0,-1,-1,-1,-1]
 # contrastive_prompts = ["Photo of stuff.",
 #                         "Photo of a dinosaur."]
-
 prompts = torch.cat([clip.tokenize(p) for p in contrastive_prompts])
 prompts = prompts.to(device=exp_params['hyperparams']['gpu_num'])
 
 
-net = ContrastivePromptsNet(net, prompts)
+promps_values = torch.tensor(promps_values).to(device=exp_params['hyperparams']['gpu_num'])
+
+
+net = ContrastiveManyPromptsNet(net, prompts,promps_values)
 model = CLIPZeroShotModel(organizer.root_path+'outputs/', net, run_name, label_info, ['test'])
 
 ##### SETUP TESTER #####

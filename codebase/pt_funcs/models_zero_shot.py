@@ -5,6 +5,27 @@ from torch import nn
 import pytorch_lightning as pl
 from codebase.experiment_tracking.run_tracker import VarTrackerCLIPExperiments
 
+class ContrastiveManyPromptsNet(nn.Module):
+    def __init__(self, clip_model, prompts, prompt_values):
+        super().__init__()
+        self.model = clip_model
+        self.prompts = prompts
+        self.prompt_values = prompt_values
+
+    def simple_contrastive(self, img_feats, txt_feats):
+        img_feats /= img_feats.norm(dim=-1, keepdim=True)
+        txt_feats /= txt_feats.norm(dim=-1, keepdim=True)
+        activations = (100.0 * img_feats @ txt_feats.T).softmax(dim=-1)
+        output = activations * self.prompt_values.unsqueeze(0)
+        return output.mean(-1)
+
+    def forward(self, img):
+        img_feats = img 
+        txt_feats = self.model.encode_text(self.prompts)        
+        scenicness = self.simple_contrastive(img_feats, txt_feats)
+        return scenicness
+
+
 class ContrastivePromptsNet(nn.Module):
     def __init__(self, clip_model, prompts=None):
         super().__init__()
