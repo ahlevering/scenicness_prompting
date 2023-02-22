@@ -56,11 +56,12 @@ class SONData(Dataset):
                 'gt': scenicness
             }
     
-    def get_image(self, id, folder_num):
+    def get_image(self, folder_num, id):
         img_path = Path(self.images_root + f'{folder_num}/' + str(id) +'.jpg')
         # img_path = Path(self.images_root + f'{datapoint["folder_num"].values[0]}/' + str(point_id) +'.jpg')
         img = Image.open(img_path).convert('RGB')
         img = self.transforms(img) # To list to append neighbouring images
+        return img
 
     def __len__(self):
         if self.sample_ids:

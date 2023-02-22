@@ -25,6 +25,8 @@ model.requires_grad_ = False
 
 ##### SET UP TRANSFORMS #####
 test_trans = process_yaml.setup_transforms(exp_params['transforms']['test'])
+transforms = {'test': preprocess}
+# transforms = {'test': test_trans}
 
 # label_info = {}
 # label_info['scenic'] = {}
@@ -37,12 +39,14 @@ data_module = ClipDataLoader( 16,
                               data_class=SONData
                             )
 
+# def setup_data_classes(self, splits_file, imgs_root, sample_files=None, embeddings=None, transforms=None, id_col='ID', splits=['train']):
 data_module.setup_data_classes( exp_params['paths']['splits_file'],
                                 exp_params['paths']['images_root'],
                                 None,
+                                False,
+                                transforms,
                                 exp_params['descriptions']['id_col'],
-                                exp_params['descriptions']['splits'],
-                                test_transforms=test_trans,
+                                exp_params['descriptions']['splits']
                             )
 
 embeddings = {}
@@ -53,5 +57,5 @@ with torch.no_grad():
         for i, id_num in enumerate(batch['ids'].cpu().numpy()):
             embeddings[str(id_num)] = encoding[i,:].detach().cpu()
 
-    with open("data/embeddings.pkl", 'wb') as f:
+    with open("data/embeddings_preprocess.pkl", 'wb') as f:
         pickle.dump(embeddings, f)

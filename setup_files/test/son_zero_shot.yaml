@@ -12,8 +12,8 @@ paths:
 
 hyperparams:
   epochs: 1
-  batch_size: 128
-  workers: 32
+  batch_size: 64
+  workers: 16
   gpu_num: 0
 
 transforms:
@@ -23,6 +23,9 @@ transforms:
     size:
       resize:
         size: 224
+
+      # center_crop:
+      #   size: 224        
 
     normalize:
         method: "bicubic"

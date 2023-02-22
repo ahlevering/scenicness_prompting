@@ -1,10 +1,6 @@
-from copy import deepcopy
-
-import numpy as np
 import torch
 from torch import nn
 import pytorch_lightning as pl
-from torchvision.models import resnet50
 from codebase.experiment_tracking.run_tracker import VarTrackerCLIPExperiments
 import clip
 from clip.simple_tokenizer import SimpleTokenizer as _Tokenizer

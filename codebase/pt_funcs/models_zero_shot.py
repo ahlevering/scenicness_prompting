@@ -5,7 +5,7 @@ from torch import nn
 import pytorch_lightning as pl
 from codebase.experiment_tracking.run_tracker import VarTrackerCLIPExperiments
 
-class ContrastivePromptsModel(nn.Module):
+class ContrastivePromptsNet(nn.Module):
     def __init__(self, clip_model, prompts=None):
         super().__init__()
         self.model = clip_model
@@ -18,7 +18,7 @@ class ContrastivePromptsModel(nn.Module):
         return ranking[:,0]
 
     def forward(self, img):
-        img_feats = self.model.encode_image(img)
+        img_feats = img 
         txt_feats = self.model.encode_text(self.prompts)        
         scenicness = self.simple_contrastive(img_feats, txt_feats)
         return scenicness
@@ -68,7 +68,7 @@ class CLIPZeroShotModel(pl.LightningModule):
         return x
 
     def iteration_forward(self, batch, tracker, split):
-        preds = self.net(batch['img']) * 10
+        preds = (self.net(batch['img']) * 9) + 1
 
         ## Get metadata
         ids = batch['ids'].cpu().numpy()

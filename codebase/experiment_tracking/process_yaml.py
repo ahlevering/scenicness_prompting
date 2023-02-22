@@ -14,7 +14,7 @@ def setup_transforms(transform_cmds):
                                                             transform_cmds['size']['randomresizedcrop']['size'],
                                                             transform_cmds['size']['randomresizedcrop']['scale']))
         if 'center_crop' in transform_cmds['size']:
-            compose_list.append(transforms.CenterCrop(transform_cmds['size']['crop']))
+            compose_list.append(transforms.CenterCrop(transform_cmds['size']['center_crop']['size']))
         if 'five_crop' in transform_cmds['size']:
             compose_list.append(transforms.FiveCrop(transform_cmds['size']['five_crop']))
     

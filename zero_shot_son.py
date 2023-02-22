@@ -10,7 +10,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.utilities.seed import seed_everything
 
 from codebase.pt_funcs.dataloaders import SONData, ClipDataLoader
-from codebase.pt_funcs.models_zero_shot import CLIPZeroShotModel
+from codebase.pt_funcs.models_zero_shot import CLIPZeroShotModel, ContrastivePromptsNet
 from codebase.experiment_tracking.save_metadata import ExperimentOrganizer
     
 ##### SET GLOBAL OPTIONS ######
@@ -19,8 +19,8 @@ np.set_printoptions(suppress=True)
 torch.set_printoptions(sci_mode=False)
 
 #### Shutting up annoying warnings ####
-# warnings.simplefilter(action='ignore', category=UserWarning)
-# warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=UserWarning)
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 ##### LOAD SET-UP FILE #####
 setup_file = "setup_files/test/son_zero_shot.yaml"
@@ -30,7 +30,7 @@ with open(setup_file) as file:
 run_name = exp_params['descriptions']['name']
 run_family = exp_params['descriptions']['exp_family']
 
-model, preprocess = clip.load('ViT-B/32')
+net, preprocess = clip.load('ViT-B/32')
 # model = model.to(device=exp_params['hyperparams']['gpu_num'])
 
 ##### SET UP TRANSFORMS #####
@@ -66,16 +66,17 @@ organizer.store_yaml(setup_file)
 organizer.store_environment()
 organizer.store_codebase(['.py'])
 
-## Stuff works up until here
-
 ##### SETUP MODEL #####
-contrastive_prompts = ["Photo of an extremely beautiful region.",
-                        "Photo of an extremely ugly region."]
+contrastive_prompts = ["A photo of an extremely beautiful area.",
+                        "A photo of an extremely ugly area."]
+# contrastive_prompts = ["Photo of stuff.",
+#                         "Photo of a dinosaur."]
 
 prompts = torch.cat([clip.tokenize(p) for p in contrastive_prompts])
 prompts = prompts.to(device=exp_params['hyperparams']['gpu_num'])
 
-net = None # TODO: Make classes with only the text encoder, prompts, and image encoder
+
+net = ContrastivePromptsNet(net, prompts)
 model = CLIPZeroShotModel(organizer.root_path+'outputs/', net, run_name, label_info, ['test'])
 
 ##### SETUP TESTER #####
