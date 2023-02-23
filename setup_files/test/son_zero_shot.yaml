@@ -1,5 +1,5 @@
 descriptions:
-  name: "ugly_beautiful_region"
+  name: "ensemble_prompts"
   exp_family: "son_zero_shot"
   id_col: 'ID'
   splits:

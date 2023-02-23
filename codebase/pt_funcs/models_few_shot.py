@@ -188,6 +188,15 @@ class Baseline(nn.Module):
     def __init__(self, model):
         super().__init__()
         self.model = model
+        self.model.apply(self.deactivate_batchnorm)
+
+    def deactivate_batchnorm(self, m):
+        if isinstance(m, nn.BatchNorm2d):
+            m.reset_parameters()
+            m.eval()
+            with torch.no_grad():
+                m.weight.fill_(1.0)
+                m.bias.zero_()  
 
     def forward(self, image):
         x = self.model(image)
@@ -370,18 +379,18 @@ class CLIPFewShotModule(pl.LightningModule):
             
             
 # ### Validation ###
-#     def on_validation_epoch_start(self):
-#         ## Clear out val test run data ##
-#         if self.current_epoch == 0:
-#             self.val_tracker.reset_out_files()   
+    def on_validation_epoch_start(self):
+        ## Clear out val test run data ##
+        if self.current_epoch == 0:
+            self.val_tracker.reset_out_files()   
 
-#     def validation_step(self, batch, batch_idx):
-#         loss = self.iteration_forward(batch, self.val_tracker, 'val')
-#         return loss
+    def validation_step(self, batch, batch_idx):
+        loss = self.iteration_forward(batch, self.val_tracker, 'val')
+        return loss
 
-#     def validation_epoch_end(self, train_outputs):
-#         self.end_epoch(self.val_tracker)
-#         self.num_steps = 0
+    def validation_epoch_end(self, train_outputs):
+        self.end_epoch(self.val_tracker)
+        self.num_steps = 0
 
     # def optimizer_step(
     #     self,

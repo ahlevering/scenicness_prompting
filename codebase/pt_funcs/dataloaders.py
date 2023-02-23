@@ -130,30 +130,43 @@ class ClipDataLoader(pl.LightningDataModule):
         # self.dims = None    
         self.splits = None    
 
-    def setup_data_classes(self, splits_file, imgs_root, sample_files=None, embeddings=None, transforms=None, id_col='ID', splits=['train']):
+    def setup_data_classes(self, splits_file, imgs_root, sample_files, embeddings=None, transforms=None, id_col='ID', splits=['train']):
         self.exp_data = self.container_class(splits_file)
         if embeddings:
             embeddings = load_pickle(embeddings)
 
         if 'all' in splits:
-            # exp_data, imgs_root, transforms, sample_ids=None, embeddings=None
             self.test_data = self.data_class(self.exp_data,
                                              imgs_root,                                             
                                              transforms['test'],
-                                             sample_files,
+                                             None,
                                              embeddings)
 
         if 'train' in splits:
             # train_split_labels = self.exp_data.labels[self.exp_data.labels['split'].isin(['train'])]
             train_sample_ids = load_csv(sample_files['train'])
+            # def __init__(self, exp_data, imgs_root, transforms, sample_ids=None, embeddings=None):            
             self.train_data = self.data_class(  self.exp_data,
-                                                train_sample_ids,
                                                 imgs_root,
-                                                transforms=transforms['train'])
+                                                transforms['train'],
+                                                train_sample_ids,
+                                                embeddings)
+
+        if 'val' in splits:
+            # train_split_labels = self.exp_data.labels[self.exp_data.labels['split'].isin(['train'])]
+            val_sample_ids = load_csv(sample_files['val'])
+            self.val_data = self.data_class(    self.exp_data,
+                                                imgs_root,
+                                                transforms['val'],
+                                                val_sample_ids,
+                                                embeddings)
         self.splits = splits
 
     def train_dataloader(self):
         return DataLoader(self.train_data, batch_size=self.batch_size, num_workers=self.workers, shuffle=True)
+    
+    def val_dataloader(self):
+        return DataLoader(self.val_data, batch_size=self.batch_size, num_workers=self.workers, shuffle=True)    
 
     def test_dataloader(self):
         return DataLoader(self.test_data, batch_size=self.batch_size, num_workers=self.workers, shuffle=False)

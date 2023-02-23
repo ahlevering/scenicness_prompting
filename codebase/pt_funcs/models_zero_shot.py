@@ -119,6 +119,7 @@ class CLIPZeroShotModel(pl.LightningModule):
     def end_epoch(self, tracker):
         ## Write outputs        
         tracker.store_epoch_metrics()
+        tracker.print_results()
         tracker.save_metrics_to_file()
         tracker.save_observations_to_file(self.current_epoch)
 

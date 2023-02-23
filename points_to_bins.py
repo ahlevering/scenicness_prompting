@@ -28,6 +28,20 @@ out_dir.mkdir(exist_ok=True, parents=True)
 
 all_bins = set(set(pts_with_bins['bin']))
 
+# Get baseline sample ids
+train_samples = pts_with_bins.sample(21210) # 10% for training
+
+with open(f"{out_dir}/baseline_train.csv", 'w', newline='') as out_file:
+    wr = csv.writer(out_file, quoting=csv.QUOTE_ALL)
+    wr.writerow(list(train_samples['ID'].values))
+
+remainder = pts_with_bins[~pts_with_bins['ID'].isin(train_samples['ID'])]
+val_samples = pts_with_bins.sample(10605) # 5% for validation    
+
+with open(f"{out_dir}/baseline_val.csv", 'w', newline='') as out_file:
+    wr = csv.writer(out_file, quoting=csv.QUOTE_ALL)
+    wr.writerow(list(val_samples['ID'].values))
+
 for num in [25, 50, 75, 100, 175, 250, 325, 400, 500]:
     # Sample data from set
     averages = pts_with_bins['Average'].to_list()
@@ -37,7 +51,7 @@ for num in [25, 50, 75, 100, 175, 250, 325, 400, 500]:
 
     bins = []
     sampled_pts = []
-    for sample in sampled_values:
+    for sample in values_clipped:
 
         bin_included = False
         i = 0

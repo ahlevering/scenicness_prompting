@@ -25,7 +25,7 @@ np.set_printoptions(suppress=True)
 torch.set_printoptions(sci_mode=False)
 
 ##### LOAD SET-UP FILE #####
-setup_file = "setup_files/train/son_few_shot.yaml"
+setup_file = "setup_files/train/son_baseline.yaml"
 with open(setup_file) as file:
     exp_params = yaml.full_load(file)
 

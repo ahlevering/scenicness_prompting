@@ -67,10 +67,30 @@ organizer.store_environment()
 organizer.store_codebase(['.py'])
 
 ##### SETUP MODEL #####
+# all_data = {"A photo of a natural area.":6,
+#             "A photo of snow capped mountains":10,
+#             "A photo of a scenic lake.":9,
+#             "A photo of a scenic and snowy wonderland":10,
+#             "A photo of an idilic landscape":9,
+#             "A photo of a carpet of flowers in the forest":9,
+#             "A photo of a field.":6,
+#             "A photo of an unremarkable rural area.":5,
+#             "A photo of an urban area.":4,
+#             "A photo of a highway.":1,
+#             "A photo of a construction area.":1,
+#             "A photo of vehicles.":1,
+#             "Man made metal structures.":1,
+#             "An urban park":5,
+#             "Agricultural machinery":2,
+#             "A road between fields":3}
+
+# contrastive_prompts = list(all_data.keys())
+# promps_values = list(all_data.values())
+
 all_data = ["A photo of a natural area.", 6,
                         "A photo of snow capped mountains", 10,
                         "A photo of a scenic lake.", 9,
-                        "A photo photo of a scenic and snowy wonderland", 10,
+                        "A photo of a scenic and snowy wonderland", 10,
                         "A photo of an idilic landscape", 9,
                         "A carpet of flowers in the forest", 9,
                         "A photo of a field.", 6,
