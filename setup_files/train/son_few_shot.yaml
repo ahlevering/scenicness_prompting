@@ -4,14 +4,17 @@ descriptions:
   id_col: 'ID'
   splits:
     - "train"
+    - "val"
     - "all"
 
 paths:
-  splits_file:          "../son_det/data/source/son_splits.geojson"
+  labels_file:          "data/son_pts_with_bins.geojson" # "../son_det/data/source/son_splits.geojson"
+  splits_root:          "data/splits/"
   images_root:          "../../../data/datasets/SoN/images/"
 
 hyperparams:
   epochs: 25
+  k_folds: 5
   check_val_every_n: 1
   batch_size: 1
   workers: 16
@@ -27,6 +30,7 @@ hyperparams:
     ctx_init: "A photo of an area that is extremely" # "a photo of an area that is"
     class_context: False
   optim:
+    # lr: 0.000025
     lr: 0.000025
     decay: 0  
 
@@ -47,7 +51,7 @@ transforms:
     warps_and_distorts:
       hflip: 0.5
 
-  test:
+  val:
     to_tensor: true
 
     size:
@@ -58,3 +62,15 @@ transforms:
         method: "bicubic"
         mean: [0.48145466, 0.4578275, 0.40821073]
         std:  [0.26862954, 0.26130258, 0.27577711]
+
+  test:
+    to_tensor: true
+
+    size:
+      resize:
+        size: 224
+
+    normalize:
+        method: "bicubic"
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.26130258, 0.27577711]        

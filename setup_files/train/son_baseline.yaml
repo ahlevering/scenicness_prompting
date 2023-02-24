@@ -19,7 +19,7 @@ hyperparams:
     - 0
 
   optim:
-    lr: 0.00005
+    lr: 0.0005 #25
     decay: 0  
 
 transforms:

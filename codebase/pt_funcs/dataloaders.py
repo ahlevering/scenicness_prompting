@@ -1,6 +1,7 @@
 from pathlib import Path
 import pickle
 import csv
+from sklearn.model_selection import KFold
 
 import pandas as pd
 import geopandas as gpd
@@ -16,13 +17,6 @@ def load_pickle(pickle_file):
     with open(pickle_file, 'rb') as f:
         matches = pickle.load(f)
     return matches
-
-def load_csv(fpath):
-    with open(fpath, 'r', newline='') as csv_file:
-        f = csv.reader(csv_file, quoting=csv.QUOTE_ALL)
-        rows = [row for row in f][0]
-        rows = [int(r) for r in rows] # Fix types
-        return rows
 
 class SONData(Dataset):
     def __init__(self, exp_data, imgs_root, transforms, sample_ids=None, embeddings=None):
@@ -130,8 +124,8 @@ class ClipDataLoader(pl.LightningDataModule):
         # self.dims = None    
         self.splits = None    
 
-    def setup_data_classes(self, splits_file, imgs_root, sample_files, embeddings=None, transforms=None, id_col='ID', splits=['train']):
-        self.exp_data = self.container_class(splits_file)
+    def setup_data_classes(self, labels_file, imgs_root, split_ids, embeddings=None, transforms=None, id_col='ID', splits=['train', 'val']):
+        self.exp_data = self.container_class(labels_file)
         if embeddings:
             embeddings = load_pickle(embeddings)
 
@@ -144,21 +138,19 @@ class ClipDataLoader(pl.LightningDataModule):
 
         if 'train' in splits:
             # train_split_labels = self.exp_data.labels[self.exp_data.labels['split'].isin(['train'])]
-            train_sample_ids = load_csv(sample_files['train'])
             # def __init__(self, exp_data, imgs_root, transforms, sample_ids=None, embeddings=None):            
             self.train_data = self.data_class(  self.exp_data,
                                                 imgs_root,
                                                 transforms['train'],
-                                                train_sample_ids,
+                                                split_ids['train'],
                                                 embeddings)
 
         if 'val' in splits:
             # train_split_labels = self.exp_data.labels[self.exp_data.labels['split'].isin(['train'])]
-            val_sample_ids = load_csv(sample_files['val'])
             self.val_data = self.data_class(    self.exp_data,
                                                 imgs_root,
                                                 transforms['val'],
-                                                val_sample_ids,
+                                                split_ids['val'],
                                                 embeddings)
         self.splits = splits
 

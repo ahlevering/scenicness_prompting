@@ -7,6 +7,8 @@ from clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
 
 import torch.nn.functional as F
 
+from timm import create_model # ConvNext
+
 # from codebase.pt_funcs.models_zero_shot import 
 
 _tokenizer = _Tokenizer()
@@ -185,10 +187,14 @@ class CLIPLinearProbe(nn.Module):
         return scenicness
 
 class Baseline(nn.Module):
-    def __init__(self, model):
+    def __init__(self, net):
         super().__init__()
-        self.model = model
-        self.model.apply(self.deactivate_batchnorm)
+        self.model = create_model("convnext_small", pretrained=True)
+        self.model.head.fc = nn.Linear(768, 1, bias=True)
+        with torch.no_grad():
+            self.model.head.fc.bias.fill_(4.5)
+            # self.model.head.fc.weight*=0.01
+        # self.model.apply(self.deactivate_batchnorm)
 
     def deactivate_batchnorm(self, m):
         if isinstance(m, nn.BatchNorm2d):
@@ -307,8 +313,9 @@ class CLIPFewShotModule(pl.LightningModule):
 
     def iteration_forward(self, batch, tracker, split):                
         preds = (self.net(batch['img']) * 9) + 1 # Scale to 1-10 range
+        # preds = self.net(batch['img']) # Scale to 1-10 range
 
-        loss = F.mse_loss(preds.double(), batch['gt'].double())
+        loss = F.mse_loss(preds.double().squeeze(), batch['gt'].double().squeeze())
 
         ## Get metadata
         ids = batch['ids'].cpu().numpy()
@@ -428,6 +435,7 @@ class CLIPFewShotModule(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(self.net.parameters(), lr=self.lr, weight_decay=self.decay)#, momentum=False)
         # optimizer = torch.optim.Adam(self.net.coop_learner.parameters(), lr=self.lr, weight_decay=self.decay)
+        # optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.decay)
 
         scheduler1 = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.9, last_epoch=-1)
 
