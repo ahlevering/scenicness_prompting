@@ -6,7 +6,7 @@ descriptions:
     - "all"
 
 paths:
-  splits_file:          "data/son_pts_with_bins.geojson"
+  labels_file:          "data/son_pts_with_bins.geojson"
   embeddings:           "data/embeddings.pkl"
   images_root:          "../../../data/datasets/SoN/images/"
 

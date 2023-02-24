@@ -46,9 +46,9 @@ data_module = ClipDataLoader( exp_params['hyperparams']['workers'],
                               data_class=SONData
                             )
 
-data_module.setup_data_classes( splits_file=exp_params['paths']['splits_file'],
-                                imgs_root=exp_params['paths']['images_root'],
-                                sample_files=None, # No sampling from the dataset, run on entire
+data_module.setup_data_classes( exp_params['paths']['labels_file'],
+                                exp_params['paths']['images_root'],
+                                split_ids=None,
                                 embeddings=exp_params['paths']['embeddings'],
                                 transforms=transforms,
                                 id_col=exp_params['descriptions']['id_col'],
