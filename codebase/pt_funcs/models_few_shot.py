@@ -224,7 +224,7 @@ class CLIPLinearProbe(nn.Module):
         return scenicness
 
 class CoOpCLIPLearner(nn.Module):
-    def __init__(self, clip_model, coop_hyperparams):
+    def __init__(self, clip_model, coop_hyperparams, use_embeddings=False):
         super().__init__()
         self.prompt_learner = PromptLearnerWrapper(clip_model, coop_hyperparams)
         self.tokenized_prompts = self.prompt_learner.tokenized_prompts
@@ -232,9 +232,13 @@ class CoOpCLIPLearner(nn.Module):
         self.text_encoder = TextEncoder(clip_model)
         self.logit_scale = clip_model.logit_scale
         self.dtype = clip_model.dtype
+        self.use_embeddings = use_embeddings
 
     def forward(self, image):
-        image_features = self.image_encoder(image.type(self.dtype))
+        if not self.use_embeddings:        
+            image_features = self.image_encoder(image.type(self.dtype))
+        else:
+            image_features = image
 
         prompts = self.prompt_learner()
         tokenized_prompts = self.tokenized_prompts
@@ -249,23 +253,15 @@ class CoOpCLIPLearner(nn.Module):
         return logits
 
 class SONCLIPFewShotNet(nn.Module):
-    def __init__(self, basenet, coop_hyperparams):
+    def __init__(self, basenet, coop_hyperparams, use_embeddings):
         super().__init__()
-        self.coop_learner = CoOpCLIPLearner(basenet, coop_hyperparams)
-
-    # def simple_contrastive(self, img_feats, txt_feats):
-    #     img_feats /= img_feats.norm(dim=-1, keepdim=True)
-    #     txt_feats /= txt_feats.norm(dim=-1, keepdim=True)
-    #     ranking = (100.0 * img_feats @ txt_feats.T).softmax(dim=-1)
-    #     return ranking[:,0]
+        self.coop_learner = CoOpCLIPLearner(basenet, coop_hyperparams, use_embeddings)
 
     def forward(self, img):
-        # img_feats = self.model.encode_image(img)
-        # txt_feats = self.model.encode_text(self.prompts)   
         logits = self.coop_learner(img)
         pos_likelihood = logits.softmax(dim=-1)[:,0]
-        # scenicness = self.simple_contrastive(img_feats, txt_feats)
-        return pos_likelihood # scenicness
+        scenicness = (pos_likelihood * 9) + 1
+        return scenicness
 
 # class PP2CLIPNet(nn.Module):
 #     def __init__(self, clip_model, prompts=None):
@@ -312,8 +308,7 @@ class CLIPFewShotModule(pl.LightningModule):
         return x
 
     def iteration_forward(self, batch, tracker, split):                
-        preds = (self.net(batch['img']) * 9) + 1 # Scale to 1-10 range
-        # preds = self.net(batch['img']) # Scale to 1-10 range
+        preds = self.net(batch['img'])
 
         loss = F.mse_loss(preds.double().squeeze(), batch['gt'].double().squeeze())
 

@@ -11,7 +11,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import Trainer
 from pytorch_lightning.utilities.seed import seed_everything
 
-from codebase.pt_funcs.dataloaders import SONData, ClipDataLoader
+from codebase.pt_funcs.dataloaders import SoNDataContainer, SONData, ClipDataLoader
 from codebase.pt_funcs.models_few_shot import SONCLIPFewShotNet, CLIPFewShotModule, CLIPLinearProbe, Baseline
 from codebase.utils.file_utils import load_csv, make_crossval_splits
 
@@ -27,6 +27,8 @@ torch.set_printoptions(sci_mode=False)
 setup_file = "setup_files/train/son_few_shot.yaml"
 with open(setup_file) as file:
     exp_params = yaml.full_load(file)
+
+data_container = SoNDataContainer(exp_params['paths']['labels_file'])    
 
 run_name = exp_params['descriptions']['name']
 run_family = exp_params['descriptions']['exp_family']
@@ -61,7 +63,7 @@ for n_samples in [25, 50, 75, 100, 175, 250, 350, 500]:
                                     data_class=SONData
                                     )
 
-        data_module.setup_data_classes( exp_params['paths']['labels_file'],
+        data_module.setup_data_classes( data_container,
                                         exp_params['paths']['images_root'],
                                         split_indices,
                                         embeddings=None, # exp_params['paths']['embeddings'],
@@ -73,7 +75,7 @@ for n_samples in [25, 50, 75, 100, 175, 250, 350, 500]:
         loader_emulator = next(iter(data_module.train_data))
 
         ##### STORE ENVIRONMENT AND FILES #####
-        base_path = f"runs/{run_family}/{run_name}/{n_samples}/train/{k}/"
+        base_path = f"runs/{run_family}/{run_name}/{n_samples}/train/val_{k}/"
         organizer = ExperimentOrganizer(base_path)
         organizer.store_yaml(setup_file)
         organizer.store_environment()
@@ -90,7 +92,7 @@ for n_samples in [25, 50, 75, 100, 175, 250, 350, 500]:
         elif 'baseline' in run_name:
             net = Baseline(model)
         else:    
-            net = SONCLIPFewShotNet(model, exp_params['hyperparams']['coop'])
+            net = SONCLIPFewShotNet(model, exp_params['hyperparams']['coop'], use_embeddings=False)
 
         model = CLIPFewShotModule(organizer.root_path+'outputs/', net, run_name, label_info, exp_params['descriptions']['splits'])
         model.set_hyperparams(exp_params['hyperparams']['optim']['lr'], exp_params['hyperparams']['optim']['decay'])
@@ -102,7 +104,7 @@ for n_samples in [25, 50, 75, 100, 175, 250, 350, 500]:
             save_top_k=1,
             mode='min')
 
-        ##### SETUP TESTER #####
+        ##### SETUP TRAINER #####
         tb_logger = TensorBoardLogger(save_dir=organizer.logs_path, name=run_name)
         trainer = Trainer(  max_epochs=exp_params['hyperparams']['epochs'],
                             gpus=exp_params['hyperparams']['gpu_nums'],
@@ -126,22 +128,25 @@ for n_samples in [25, 50, 75, 100, 175, 250, 350, 500]:
                                         64,
                                         data_class=SONData
                                     )
-
-        data_module.setup_data_classes( exp_params['paths']['splits_file'],
-                                        exp_params['paths']['images_root'],
-                                        {'train': f"data/splits/res_4/{n_samples}.csv"},
-                                        exp_params['descriptions']['id_col'],
-                                        exp_params['descriptions']['splits'],
-                                        train_transforms=train_trans,
-                                        test_transforms=test_trans,
-                                    )
-
-        for i, param in enumerate(model.parameters()):
-            param.requires_grad_(False)
-
-        best_model = next(Path(f"runs/{run_family}/{run_name}/{n_samples}/train/outputs/states/").glob('**/*'))
-        state = torch.load(best_model)['prompter']
-        model.load_state_dict(state, strict=False)    
         
-        tester = Trainer(gpus=exp_params['hyperparams']['gpu_nums'], logger=tb_logger)
-        tester.test(model, datamodule=data_module) 
+        # # Enable loading of embeddings
+        # model.net.coop_learner.use_embeddings = True
+
+        # data_module.setup_data_classes( exp_params['paths']['labels_file'],
+        #                                 exp_params['paths']['images_root'],
+        #                                 split_indices,
+        #                                 embeddings=exp_params['paths']['embeddings'],
+        #                                 transforms=transforms,
+        #                                 id_col=exp_params['descriptions']['id_col'],
+        #                                 splits=exp_params['descriptions']['splits']
+        #                             )
+
+        # for i, param in enumerate(model.parameters()):
+        #     param.requires_grad_(False)
+
+        # best_model = next(Path(f"runs/{run_family}/{run_name}/{n_samples}/train/val_{k}/outputs/states/").glob('**/*'))
+        # state = torch.load(best_model)['prompter']
+        # model.load_state_dict(state, strict=False)    
+        
+        # tester = Trainer(gpus=exp_params['hyperparams']['gpu_nums'], logger=tb_logger)
+        # tester.test(model, datamodule=data_module) 

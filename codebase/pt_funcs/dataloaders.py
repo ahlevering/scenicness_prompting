@@ -114,18 +114,17 @@ class PP2DataContainer():
         self.labels[cols] = pd.DataFrame(x_scaled)
 
 class ClipDataLoader(pl.LightningDataModule):
-    def __init__(self, n_workers, batch_size, data_class=SONData, container_class=SoNDataContainer):
+    def __init__(self, n_workers, batch_size, data_class=SONData):
         super().__init__()
         self.batch_size = batch_size
         self.workers = n_workers
         self.data_class = data_class
-        self.container_class = container_class
 
         # self.dims = None    
         self.splits = None    
 
-    def setup_data_classes(self, labels_file, imgs_root, split_ids, embeddings=None, transforms=None, id_col='ID', splits=['train', 'val']):
-        self.exp_data = self.container_class(labels_file)
+    def setup_data_classes(self, data_container, imgs_root, split_ids, embeddings=None, transforms=None, id_col='ID', splits=['train', 'val']):
+        self.exp_data = data_container
         if embeddings:
             embeddings = load_pickle(embeddings)
 

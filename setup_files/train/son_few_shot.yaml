@@ -1,5 +1,5 @@
 descriptions:
-  name: "CoOp"
+  name: "contrastive_prompts"
   exp_family: "son_few_shot"
   id_col: 'ID'
   splits:
@@ -11,6 +11,7 @@ paths:
   labels_file:          "data/son_pts_with_bins.geojson" # "../son_det/data/source/son_splits.geojson"
   splits_root:          "data/splits/"
   images_root:          "../../../data/datasets/SoN/images/"
+  embeddings:           "data/embeddings.pkl"  
 
 hyperparams:
   epochs: 25
