@@ -1,22 +1,24 @@
 descriptions:
-  name: "baseline"
+  name: "baseline_10pct"
   exp_family: "son_few_shot"
   id_col: 'ID'
   splits:
     - "train"
     - "val"
+    - "test"
 
 paths:
-  splits_file:          "../son_det/data/source/son_splits.geojson"
+  labels_file:          "../son_det/data/source/son_splits.geojson"
   images_root:          "../../../data/datasets/SoN/images/"
 
 hyperparams:
-  epochs: 50
+  epochs: 15
   check_val_every_n: 1
+  # batch_size: 32
   batch_size: 64
-  workers: 16
+  workers: 8
   gpu_nums:
-    - 0
+    - 1
 
   optim:
     lr: 0.0005 #25

@@ -151,6 +151,14 @@ class ClipDataLoader(pl.LightningDataModule):
                                                 transforms['val'],
                                                 split_ids['val'],
                                                 embeddings)
+
+        if 'test' in splits:
+            self.test_data = self.data_class(self.exp_data,
+                                             imgs_root,                                             
+                                             transforms['test'],
+                                             split_ids['test'],
+                                             embeddings)
+                                                
         self.splits = splits
 
     def train_dataloader(self):

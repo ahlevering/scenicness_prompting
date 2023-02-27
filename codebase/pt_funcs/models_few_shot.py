@@ -189,10 +189,10 @@ class CLIPLinearProbe(nn.Module):
 class Baseline(nn.Module):
     def __init__(self, net):
         super().__init__()
-        self.model = create_model("convnext_small", pretrained=True)
-        self.model.head.fc = nn.Linear(768, 1, bias=True)
+        self.baseline_net = create_model("convnext_small", pretrained=True)
+        self.baseline_net.head.fc = nn.Linear(768, 1, bias=True)
         with torch.no_grad():
-            self.model.head.fc.bias.fill_(4.5)
+            self.baseline_net.head.fc.bias.fill_(4.5)
             # self.model.head.fc.weight*=0.01
         # self.model.apply(self.deactivate_batchnorm)
 
@@ -205,8 +205,8 @@ class Baseline(nn.Module):
                 m.bias.zero_()  
 
     def forward(self, image):
-        x = self.model(image)
-        return x
+        scenicness = self.baseline_net(image)
+        return scenicness
 
 class CLIPLinearProbe(nn.Module):
     def __init__(self, clip_model):
@@ -349,8 +349,8 @@ class CLIPFewShotModule(pl.LightningModule):
                 prompt_state[key] = checkpoint['state_dict'][key]
             elif "probe" in key:
                 prompt_state[key] = checkpoint['state_dict'][key]
-            elif "Baseline" in key:
-                prompt_state[key] = checkpoint['state_dict'][key]
+            # elif "baseline_net" in key:
+            #     prompt_state[key] = checkpoint['state_dict'][key]
         checkpoint['prompter'] = prompt_state
         del checkpoint['state_dict']
 
@@ -359,7 +359,7 @@ class CLIPFewShotModule(pl.LightningModule):
         
         ## Write outputs
         tracker.save_metrics_to_file()
-        tracker.save_observations_to_file(self.current_epoch)
+        # tracker.save_observations_to_file(self.current_epoch)
         # tracker.save_scatterplot(self.current_epoch)
 
         ## Reset for next epoch
@@ -428,9 +428,9 @@ class CLIPFewShotModule(pl.LightningModule):
         self.decay = decay
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(self.net.parameters(), lr=self.lr, weight_decay=self.decay)#, momentum=False)
+        # optimizer = torch.optim.SGD(self.net.parameters(), lr=self.lr, weight_decay=self.decay) #, momentum=False)
         # optimizer = torch.optim.Adam(self.net.coop_learner.parameters(), lr=self.lr, weight_decay=self.decay)
-        # optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.decay)
+        optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.decay)
 
         scheduler1 = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.9, last_epoch=-1)
 
