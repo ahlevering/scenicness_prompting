@@ -1,11 +1,23 @@
 from pathlib import Path
 from h3 import h3
-import pandas as pd
 import geopandas as gpd
 import numpy as np
 import csv
+import pickle
+from sklearn.cluster import KMeans
 
 np.random.seed(113)
+def load_pickle(pickle_file):
+    with open(pickle_file, 'rb') as f:
+        matches = pickle.load(f)
+    return matches
+
+embeddings_file = "data/embeddings.pkl"
+embeddings = load_pickle(embeddings_file)
+
+km = KMeans(n_clusters=25)
+all_embeddings = np.stack(list(embeddings.values()))
+kmeans = km.fit_predict(list(all_embeddings))
 
 bins_file = "data/son_pts_with_bins.geojson"
 if not Path(bins_file).exists():
@@ -23,57 +35,33 @@ if not Path(bins_file).exists():
 else:
     pts_with_bins = gpd.read_file(bins_file)
 
+pts_with_bins['centroid_k'] = kmeans
+
+
 out_dir = Path(f"data/splits/")
 out_dir.mkdir(exist_ok=True, parents=True)
 
 all_bins = set(set(pts_with_bins['bin']))
 
-# Get baseline sample ids
-train_samples = pts_with_bins.sample(21210) # 10% for training
+# # Get baseline sample ids
+# train_samples = pts_with_bins.sample(21210) # 10% for training
 
-with open(f"{out_dir}/baseline_train.csv", 'w', newline='') as out_file:
-    wr = csv.writer(out_file, quoting=csv.QUOTE_ALL)
-    wr.writerow(list(train_samples['ID'].values))
+# with open(f"{out_dir}/baseline_train.csv", 'w', newline='') as out_file:
+#     wr = csv.writer(out_file, quoting=csv.QUOTE_ALL)
+#     wr.writerow(list(train_samples['ID'].values))
 
-remainder = pts_with_bins[~pts_with_bins['ID'].isin(train_samples['ID'])]
-val_samples = pts_with_bins.sample(10605) # 5% for validation    
+# remainder = pts_with_bins[~pts_with_bins['ID'].isin(train_samples['ID'])]
+# val_samples = pts_with_bins.sample(10605) # 5% for validation    
 
-with open(f"{out_dir}/baseline_val.csv", 'w', newline='') as out_file:
-    wr = csv.writer(out_file, quoting=csv.QUOTE_ALL)
-    wr.writerow(list(val_samples['ID'].values))
+# with open(f"{out_dir}/baseline_val.csv", 'w', newline='') as out_file:
+#     wr = csv.writer(out_file, quoting=csv.QUOTE_ALL)
+#     wr.writerow(list(val_samples['ID'].values))
 
 for num in [25, 50, 75, 100, 175, 250, 325, 400, 500]:
     # Sample data from set
-    averages = pts_with_bins['Average'].to_list()
-    # sampled_values = np.random.normal(low=np.mean(averages), scale=np.std(averages), size=num)
-    sampled_values = np.random.uniform(low=np.min(averages), high=np.max(averages), size=num)
-    values_clipped = np.clip(sampled_values, 1, 10) # Ensure values are within dataset bounds
+    n_samples = round(num/25)
+    sampled_pts = pts_with_bins.groupby(["centroid_k"]).sample(n=n_samples, random_state=113, replace=True)
 
-    bins = []
-    sampled_pts = []
-    for sample in values_clipped:
-
-        bin_included = False
-        i = 0
-        closest_pts = pts_with_bins.iloc[(pts_with_bins['Average']-(sample)).abs().argsort()]
-        # Look for closest point within 1% of the dataset
-        while not bin_included and i < 0.01 * len(pts_with_bins):
-            closest_pt = closest_pts.iloc[i]
-            # bins_not_in_split = pts_with_bins['bin'].isin(bins).any()
-            if not closest_pt['bin'] in bins:
-                sampled_pts.append(int(closest_pt['ID']))
-                bins.append(closest_pt['bin'])
-                bin_included = True
-            else:
-                i += 1
-        if not bin_included:
-            closest_pt = closest_pts.iloc[0]
-            sampled_pts.append(int(closest_pt['ID']))
-
-    # sampled_pts = pd.DataFrame(columns=closest_pt.keys() , data=sampled_pts)
-    # sampled_pts = gpd.GeoDataFrame( sampled_pts,
-    #                                 geometry=gpd.points_from_xy(sampled_pts['Lat'], sampled_pts['Lon']),
-    #                                 crs=4326)
     with open(f"{out_dir}/{num}.csv", 'w', newline='') as out_file:
         wr = csv.writer(out_file, quoting=csv.QUOTE_ALL)
-        wr.writerow(sampled_pts)
+        wr.writerow(sampled_pts['ID'].values)
