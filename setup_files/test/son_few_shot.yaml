@@ -6,15 +6,13 @@ descriptions:
     - "all"
 
 paths:
-  splits_file:          "../son_det/data/source/son_splits.geojson"
+  labels_file:          "../son_det/data/source/son_splits.geojson"
   images_root:          "../../../data/datasets/SoN/images/"
-  train_dir:            "runs/son_few_shot/CoOp_sampled/250/train/"
-  weights_file:         "runs/son_few_shot/CoOp_sampled/250/train/outputs/states/epoch=45-mse=0.00.ckpt"
+  train_dir:            "runs/son_few_shot/baseline/21210/train/"
+  weights_file:         "runs/son_few_shot/baseline/21210/train/outputs/states/epoch=15-mse=0.00.ckpt"
   # weights_file:         "runs/son_few_shot/CoOp_sampled/2023-02-14_05:54:22/train/outputs/states/epoch=09-mse=0.00.ckpt"
 
 hyperparams:
-  epochs: 100
-  check_val_every_n: 1
   batch_size: 64
   workers: 16
   gpu_nums:
@@ -36,22 +34,3 @@ transforms:
     size:
       resize:
         size: 224
-
-    normalize:
-        method: "bicubic"
-        mean: [0.48145466, 0.4578275, 0.40821073]
-        std:  [0.26862954, 0.26130258, 0.27577711]
-
-      # randomposterize:
-      #   bits: 2
-      #   p: 0.1        
- 
-      # jitter:
-      #   brightness: 0.03
-      #   contrast: 0.03
-      #   saturation: 0.03
-      #   hue: 0.03
-      
-      # randomgrayscale: 0.2
-
-      # rotation: 5

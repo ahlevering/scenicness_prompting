@@ -428,9 +428,8 @@ class CLIPFewShotModule(pl.LightningModule):
         self.decay = decay
 
     def configure_optimizers(self):
-        # optimizer = torch.optim.SGD(self.net.parameters(), lr=self.lr, weight_decay=self.decay) #, momentum=False)
-        # optimizer = torch.optim.Adam(self.net.coop_learner.parameters(), lr=self.lr, weight_decay=self.decay)
-        optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.decay)
+        optimizer = torch.optim.SGD(self.net.parameters(), lr=self.lr, weight_decay=self.decay) #, momentum=False)
+        # optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.decay)
 
         scheduler1 = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.9, last_epoch=-1)
 

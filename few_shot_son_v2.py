@@ -40,14 +40,19 @@ transforms['val'] = process_yaml.setup_transforms(exp_params['transforms']['val'
 transforms['test'] = process_yaml.setup_transforms(exp_params['transforms']['test'])
 
 k_folds = exp_params['hyperparams']['k_folds']
-for n_samples in [25, 50, 75, 100, 175, 250, 350, 500]:
+for n_samples in [25, 50, 75, 100, 175, 250, 325, 400, 500]:
     # Load split indices
-    split_indices = load_csv(exp_params['paths']['splits_root']+f'{n_samples}.csv')
+    split_ids = load_csv(exp_params['paths']['splits_root']+f'{n_samples}.csv')
     # Subdivide sampled indices into k-fold bins
-    train_indices, val_indices = make_crossval_splits(split_indices, k_folds)
+    train_ids, val_ids = make_crossval_splits(split_ids, k_folds)
+    trainval_ids = train_ids
+    trainval_ids.extend(val_ids)
+    test_ids = data_container.labels[~data_container.labels['ID'].isin(trainval_ids)]
+    test_ids = list(test_ids['ID'].values)
+
     for k in range(k_folds):
         # Set bin for k
-        split_indices = {'train': train_indices[k], 'val': val_indices[k]}
+        split_ids = {'train': train_ids[k], 'val': val_ids[k], 'test': test_ids}
         if not 'baseline' in run_name:
             model, preprocess = clip.load('ViT-B/32')
         else:
@@ -65,7 +70,7 @@ for n_samples in [25, 50, 75, 100, 175, 250, 350, 500]:
 
         data_module.setup_data_classes( data_container,
                                         exp_params['paths']['images_root'],
-                                        split_indices,
+                                        split_ids,
                                         embeddings=None, # exp_params['paths']['embeddings'],
                                         transforms=transforms,
                                         id_col=exp_params['descriptions']['id_col'],
@@ -86,7 +91,6 @@ for n_samples in [25, 50, 75, 100, 175, 250, 350, 500]:
         if not 'baseline' in run_name:
             for i, param in enumerate(model.parameters()):
                 param.requires_grad_(False)
-        
         if 'linear_probe' in run_name:
             net = CLIPLinearProbe(model)
         elif 'baseline' in run_name:
@@ -130,23 +134,24 @@ for n_samples in [25, 50, 75, 100, 175, 250, 350, 500]:
                                     )
         
         # # Enable loading of embeddings
-        # model.net.coop_learner.use_embeddings = True
+        model.net.coop_learner.use_embeddings = True
 
-        # data_module.setup_data_classes( exp_params['paths']['labels_file'],
-        #                                 exp_params['paths']['images_root'],
-        #                                 split_indices,
-        #                                 embeddings=exp_params['paths']['embeddings'],
-        #                                 transforms=transforms,
-        #                                 id_col=exp_params['descriptions']['id_col'],
-        #                                 splits=exp_params['descriptions']['splits']
-        #                             )
+        data_module.setup_data_classes( 
+                                        data_container,
+                                        exp_params['paths']['images_root'],
+                                        split_ids,
+                                        embeddings=exp_params['paths']['embeddings'],
+                                        transforms=transforms,
+                                        id_col=exp_params['descriptions']['id_col'],
+                                        splits=exp_params['descriptions']['splits']
+                                    )
 
-        # for i, param in enumerate(model.parameters()):
-        #     param.requires_grad_(False)
+        for i, param in enumerate(model.parameters()):
+            param.requires_grad_(False)
 
-        # best_model = next(Path(f"runs/{run_family}/{run_name}/{n_samples}/train/val_{k}/outputs/states/").glob('**/*'))
-        # state = torch.load(best_model)['prompter']
-        # model.load_state_dict(state, strict=False)    
+        best_model = next(Path(f"runs/{run_family}/{run_name}/{n_samples}/train/val_{k}/outputs/states/").glob('**/*'))
+        state = torch.load(best_model)['prompter']
+        model.load_state_dict(state, strict=False)    
         
-        # tester = Trainer(gpus=exp_params['hyperparams']['gpu_nums'], logger=tb_logger)
-        # tester.test(model, datamodule=data_module) 
+        tester = Trainer(gpus=exp_params['hyperparams']['gpu_nums'], logger=tb_logger)
+        tester.test(model, datamodule=data_module) 

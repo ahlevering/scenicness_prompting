@@ -14,7 +14,7 @@ paths:
   embeddings:           "data/embeddings.pkl"  
 
 hyperparams:
-  epochs: 25
+  epochs: 1
   k_folds: 5
   check_val_every_n: 1
   batch_size: 1
@@ -31,8 +31,8 @@ hyperparams:
     ctx_init: "A photo of an area that is extremely" # "a photo of an area that is"
     class_context: False
   optim:
-    # lr: 0.000025
     lr: 0.000025
+    # lr: 0.000025
     decay: 0  
 
 transforms:

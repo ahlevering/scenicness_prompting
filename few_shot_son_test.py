@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import Trainer
 from pytorch_lightning.utilities.seed import seed_everything
 
-from codebase.pt_funcs.dataloaders import SONData, ClipDataLoader
+from codebase.pt_funcs.dataloaders import SONData, ClipDataLoader, SoNDataContainer
 from codebase.pt_funcs.models_few_shot import SONCLIPFewShotNet, CLIPFewShotModule
 
 from codebase.experiment_tracking import process_yaml
@@ -34,12 +34,15 @@ net, preprocess = clip.load('ViT-B/32')
 # model = model.to(device=exp_params['hyperparams']['gpu_num'])
 
 ##### SET UP TRANSFORMS #####
-test_trans = process_yaml.setup_transforms(exp_params['transforms']['test'])
+transforms = {}
+transforms['test'] = process_yaml.setup_transforms(exp_params['transforms']['test'])
 
 label_info = {}
 label_info['scenic'] = {}
 # label_info['score']['index'] = 0
 label_info['scenic']['ylims'] = [1, 10]
+
+data_container = SoNDataContainer(exp_params['paths']['labels_file'])    
 
 ##### SETUP LOADERS #####
 data_module = ClipDataLoader( exp_params['hyperparams']['workers'],    
@@ -47,11 +50,13 @@ data_module = ClipDataLoader( exp_params['hyperparams']['workers'],
                               data_class=SONData
                             )
 
-data_module.setup_data_classes( exp_params['paths']['splits_file'],
+data_module.setup_data_classes( data_container,
                                 exp_params['paths']['images_root'],
-                                exp_params['descriptions']['id_col'],
-                                exp_params['descriptions']['splits'],
-                                test_transforms=test_trans
+                                None,
+                                embeddings=None, # exp_params['paths']['embeddings'],
+                                transforms=transforms,
+                                id_col=exp_params['descriptions']['id_col'],
+                                splits=exp_params['descriptions']['splits']
                             )
 
 loader_emulator = next(iter(data_module.test_data))
@@ -73,7 +78,7 @@ organizer.store_codebase(['.py'])
 # prompts = prompts.to(device=exp_params['hyperparams']['gpu_num'])
 
 # Freeze feature extractors
-net = SONCLIPFewShotNet(net, exp_params['hyperparams']['coop'])
+net = SONCLIPFewShotNet(net, exp_params['hyperparams']['coop'], use_embeddings=False)
 # if 'weights_file' in exp_params['paths']:
 #     # weights_file = train_dir + exp_params['paths']['weights_file']
 #     prompt_state = torch.load(exp_params['paths']['weights_file'], map_location=torch.device('cpu'))['prompt_state']
@@ -86,7 +91,7 @@ net = SONCLIPFewShotNet(net, exp_params['hyperparams']['coop'])
 model = CLIPFewShotModule(organizer.root_path+'outputs/', net, run_name, label_info, exp_params['descriptions']['splits'])
 if 'weights_file' in exp_params['paths']:
     # weights_file = train_dir + exp_params['paths']['weights_file']
-    prompt_state = torch.load(exp_params['paths']['weights_file'])['prompt_state']#, map_location=torch.device('cpu'))['prompt_state']
+    prompt_state = torch.load(exp_params['paths']['weights_file'])['prompter']#, map_location=torch.device('cpu'))['prompt_state']
     model.load_state_dict(prompt_state, strict=False)
 # model.set_hyperparams(exp_params['hyperparams']['optim']['lr'], exp_params['hyperparams']['optim']['decay'])
 

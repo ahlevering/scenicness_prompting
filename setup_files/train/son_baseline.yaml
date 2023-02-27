@@ -15,7 +15,7 @@ hyperparams:
   epochs: 15
   check_val_every_n: 1
   # batch_size: 32
-  batch_size: 64
+  batch_size: 32
   workers: 8
   gpu_nums:
     - 1

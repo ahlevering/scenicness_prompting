@@ -117,8 +117,8 @@ trainer = Trainer(  max_epochs=exp_params['hyperparams']['epochs'],
                     callbacks=[checkpoint_callback],
                     logger = tb_logger,
                     fast_dev_run=False,
-                    limit_train_batches=10,
-                    limit_val_batches=10,
+                    # limit_train_batches=10,
+                    # limit_val_batches=10,
                 )
 
 ##### FIT MODEL #####
