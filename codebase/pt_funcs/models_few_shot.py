@@ -187,14 +187,20 @@ class CLIPLinearProbe(nn.Module):
         return scenicness
 
 class Baseline(nn.Module):
-    def __init__(self, net):
+    def __init__(self, net, use_embeddings=False):
         super().__init__()
-        self.baseline_net = create_model("convnext_small", pretrained=True)
-        self.baseline_net.head.fc = nn.Linear(768, 1, bias=True)
+        self.baseline_net = net.visual
+        if self.baseline_net._get_name() == 'ModifiedResNet':
+            in_dims = self.baseline_net.attnpool.c_proj.out_features
+        else:
+            pass
+            # Do some stuff for the ViT
+        self.fc = nn.Linear(in_dims, 1, bias=True)
         with torch.no_grad():
-            self.baseline_net.head.fc.bias.fill_(4.5)
+            self.fc.bias.fill_(4.5)
             # self.model.head.fc.weight*=0.01
         # self.model.apply(self.deactivate_batchnorm)
+        self.use_embeddings = use_embeddings        
 
     def deactivate_batchnorm(self, m):
         if isinstance(m, nn.BatchNorm2d):
@@ -205,7 +211,11 @@ class Baseline(nn.Module):
                 m.bias.zero_()  
 
     def forward(self, image):
-        scenicness = self.baseline_net(image)
+        if self.use_embeddings:
+            features = image
+        else:
+            features = self.baseline_net(image)
+        scenicness = self.fc(features.float())
         return scenicness
 
 class CLIPLinearProbe(nn.Module):
@@ -215,7 +225,7 @@ class CLIPLinearProbe(nn.Module):
         self.logit_scale = clip_model.logit_scale
 
         self.probe = nn.Linear(512, 1)
-        self.probe.bias.data.fill_(5)
+        self.probe.bias.data.fill_(4.5)
 
     def forward(self, image):
         image = image.half() # Cast to half for compatibility
@@ -349,8 +359,8 @@ class CLIPFewShotModule(pl.LightningModule):
                 prompt_state[key] = checkpoint['state_dict'][key]
             elif "probe" in key:
                 prompt_state[key] = checkpoint['state_dict'][key]
-            # elif "baseline_net" in key:
-            #     prompt_state[key] = checkpoint['state_dict'][key]
+            elif "baseline_net" in key:
+                prompt_state[key] = checkpoint['state_dict'][key]
         checkpoint['prompter'] = prompt_state
         del checkpoint['state_dict']
 
@@ -392,6 +402,7 @@ class CLIPFewShotModule(pl.LightningModule):
 
     def validation_epoch_end(self, train_outputs):
         self.end_epoch(self.val_tracker)
+        self.log('val_r2', self.val_tracker.variables['scenic'].metrics['rsquared'][-1])
         self.num_steps = 0
 
     # def optimizer_step(
@@ -428,9 +439,11 @@ class CLIPFewShotModule(pl.LightningModule):
         self.decay = decay
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(self.net.parameters(), lr=self.lr, weight_decay=self.decay) #, momentum=False)
-        # optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.decay)
-
+        if "baseline" in self.run_name:        
+            optimizer = torch.optim.SGD(self.net.parameters(), lr=self.lr, weight_decay=self.decay) #, momentum=False)
+            # optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.decay)
+        else:
+            optimizer = torch.optim.SGD(self.net.parameters(), lr=self.lr, weight_decay=self.decay) #, momentum=False)
         scheduler1 = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.9, last_epoch=-1)
 
         return [optimizer], [scheduler1]

@@ -102,20 +102,19 @@ model = CLIPFewShotModule(organizer.root_path+'outputs/', net, run_name, label_i
 model.set_hyperparams(exp_params['hyperparams']['optim']['lr'], exp_params['hyperparams']['optim']['decay'])
 
 checkpoint_callback = ModelCheckpoint(
-    monitor= 'train_mse',
+    monitor= 'val_mse',
     dirpath= str(organizer.states_path),
-    filename='{epoch:02d}-{mse:.2f}',
-    save_top_k=1,
+    filename='{epoch:02d}-{val_mse:.2f}',
+    save_top_k=3,
     mode='min')
 
 ##### SETUP TESTER #####
 tb_logger = TensorBoardLogger(save_dir=organizer.logs_path, name=run_name)
 trainer = Trainer(  max_epochs=exp_params['hyperparams']['epochs'],
                     gpus=exp_params['hyperparams']['gpu_nums'],
-                    # check_val_every_n_epoch=999,
-                    # #exp_params['hyperparams']['check_val_every_n'],
                     callbacks=[checkpoint_callback],
                     logger = tb_logger,
+                    log_every_n_steps=5,
                     fast_dev_run=False,
                     # limit_train_batches=10,
                     # limit_val_batches=10,

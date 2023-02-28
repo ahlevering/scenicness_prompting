@@ -11,14 +11,14 @@ paths:
   labels_file:          "data/son_pts_with_bins.geojson" # "../son_det/data/source/son_splits.geojson"
   splits_root:          "data/splits/"
   images_root:          "../../../data/datasets/SoN/images/"
-  embeddings:           "data/embeddings.pkl"  
+  embeddings_root:      "data/embeddings/"
 
 hyperparams:
-  epochs: 1
+  epochs: 25
   k_folds: 5
   check_val_every_n: 1
   batch_size: 1
-  workers: 16
+  workers: 8
   gpu_nums:
     - 0
   coop:
@@ -28,11 +28,12 @@ hyperparams:
     class_pos: "end"
     m_words: 16
     n_shots: 1    
-    ctx_init: "A photo of an area that is extremely" # "a photo of an area that is"
+    ctx_init_low: "A photo that is" # "a photo of an area that is"
+    ctx_init_high: "A photo of an area that is extremely" # "a photo of an area that is"
     class_context: False
   optim:
-    lr: 0.000025
-    # lr: 0.000025
+    # lr: 0.005
+    lr: 0.0025
     decay: 0  
 
 transforms:

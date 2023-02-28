@@ -25,6 +25,7 @@ torch.set_printoptions(sci_mode=False)
 
 ##### LOAD SET-UP FILE #####
 setup_file = "setup_files/train/son_few_shot.yaml"
+# setup_file = "setup_files/train/son_baseline.yaml"
 with open(setup_file) as file:
     exp_params = yaml.full_load(file)
 
@@ -40,7 +41,11 @@ transforms['val'] = process_yaml.setup_transforms(exp_params['transforms']['val'
 transforms['test'] = process_yaml.setup_transforms(exp_params['transforms']['test'])
 
 k_folds = exp_params['hyperparams']['k_folds']
-for n_samples in [25, 50, 75, 100, 175, 250, 325, 400, 500]:
+for n_samples in [25, 50, 100, 250, 500]:
+    if n_samples <= 100:
+        exp_params['hyperparams']['coop']['ctx_init'] = exp_params['hyperparams']['coop']['ctx_init_low']
+    else:
+        exp_params['hyperparams']['coop']['ctx_init'] = exp_params['hyperparams']['coop']['ctx_init_high']
     # Load split indices
     split_ids = load_csv(exp_params['paths']['splits_root']+f'{n_samples}.csv')
     # Subdivide sampled indices into k-fold bins
@@ -53,105 +58,106 @@ for n_samples in [25, 50, 75, 100, 175, 250, 325, 400, 500]:
     for k in range(k_folds):
         # Set bin for k
         split_ids = {'train': train_ids[k], 'val': val_ids[k], 'test': test_ids}
-        if not 'baseline' in run_name:
-            model, preprocess = clip.load('ViT-B/32')
-        else:
-            pass # TODO: figure this crap out later
 
-        label_info = {}
-        label_info['scenic'] = {}
-        label_info['scenic']['ylims'] = [1, 10]
+        for architecture in ["RN50", "ViT-L/14"]:
+            archi_save_name = architecture.replace("/", "-") # Why did they use slashes in their naming!?
+            label_info = {}
+            label_info['scenic'] = {}
+            label_info['scenic']['ylims'] = [1, 10]
 
-        ##### SETUP LOADERS #####
-        data_module = ClipDataLoader( exp_params['hyperparams']['workers'],    
-                                    exp_params['hyperparams']['batch_size'],
-                                    data_class=SONData
-                                    )
+            ##### SETUP LOADERS #####
+            data_module = ClipDataLoader( exp_params['hyperparams']['workers'],    
+                                        exp_params['hyperparams']['batch_size'],
+                                        data_class=SONData
+                                        )
 
-        data_module.setup_data_classes( data_container,
-                                        exp_params['paths']['images_root'],
-                                        split_ids,
-                                        embeddings=None, # exp_params['paths']['embeddings'],
-                                        transforms=transforms,
-                                        id_col=exp_params['descriptions']['id_col'],
-                                        splits=exp_params['descriptions']['splits']
-                                    )
+            data_module.setup_data_classes( data_container,
+                                            exp_params['paths']['images_root'],
+                                            split_ids,
+                                            embeddings=None, # exp_params['paths']['embeddings'],
+                                            transforms=transforms,
+                                            id_col=exp_params['descriptions']['id_col'],
+                                            splits=exp_params['descriptions']['splits']
+                                        )
 
-        loader_emulator = next(iter(data_module.train_data))
+            loader_emulator = next(iter(data_module.train_data))
 
-        ##### STORE ENVIRONMENT AND FILES #####
-        base_path = f"runs/{run_family}/{run_name}/{n_samples}/train/val_{k}/"
-        organizer = ExperimentOrganizer(base_path)
-        organizer.store_yaml(setup_file)
-        organizer.store_environment()
-        organizer.store_codebase(['.py'])
+            ##### STORE ENVIRONMENT AND FILES #####
+            base_path = f"runs/{run_family}/{run_name}/{archi_save_name}/{n_samples}/val_{k}/"
+            organizer = ExperimentOrganizer(base_path)
+            organizer.store_yaml(setup_file)
+            organizer.store_environment()
+            organizer.store_codebase(['.py'])
 
-        ##### SETUP MODEL #####
-        # Freeze feature extractors
-        if not 'baseline' in run_name:
+            ##### SETUP MODEL #####
+            model, preprocess = clip.load(architecture)      
+
+            # Freeze feature extractors
+            if not 'unfrozen' in run_name:
+                for i, param in enumerate(model.parameters()):
+                    param.requires_grad_(False)
+            # Load model class
+            if 'linear_probe' in run_name:
+                net = CLIPLinearProbe(model)
+            elif 'baseline' in run_name:
+                net = Baseline(model, use_embeddings=False)
+            else:    
+                net = SONCLIPFewShotNet(model, exp_params['hyperparams']['coop'], use_embeddings=False)
+
+            # Setup training wrapper
+            model = CLIPFewShotModule(organizer.root_path+'outputs/', net, run_name, label_info, exp_params['descriptions']['splits'])
+            model.set_hyperparams(exp_params['hyperparams']['optim']['lr'], exp_params['hyperparams']['optim']['decay'])
+
+            checkpoint_callback = ModelCheckpoint(
+                monitor= 'val_r2',
+                dirpath= str(organizer.states_path),
+                filename='{epoch:02d}-{val_r2:.4f}',
+                save_top_k=3,
+                mode='max')
+
+            ##### SETUP TRAINER #####
+            tb_logger = TensorBoardLogger(save_dir=organizer.logs_path, name=run_name)
+            trainer = Trainer(  max_epochs=exp_params['hyperparams']['epochs'],
+                                gpus=exp_params['hyperparams']['gpu_nums'],
+                                callbacks=[checkpoint_callback],
+                                logger = tb_logger,
+                                fast_dev_run=False,
+                                # limit_train_batches=250,
+                                # limit_val_batches=10,
+                            )
+
+            ##### FIT MODEL #####
+            print(f"fitting {run_name}")
+            trainer.fit(model, datamodule=data_module)
+            
+            ##### TEST MODEL #####
+            data_module = ClipDataLoader(   16,    
+                                            64,
+                                            data_class=SONData
+                                        )
+            
+            # # Enable loading of embeddings
+            model.net.coop_learner.use_embeddings = True
+
+            data_module.setup_data_classes( 
+                                            data_container,
+                                            exp_params['paths']['images_root'],
+                                            split_ids,
+                                            embeddings=exp_params['paths']['embeddings_root']+f"{archi_save_name}.pkl",
+                                            transforms=transforms,
+                                            id_col=exp_params['descriptions']['id_col'],
+                                            splits=exp_params['descriptions']['splits']
+                                        )
+
             for i, param in enumerate(model.parameters()):
                 param.requires_grad_(False)
-        if 'linear_probe' in run_name:
-            net = CLIPLinearProbe(model)
-        elif 'baseline' in run_name:
-            net = Baseline(model)
-        else:    
-            net = SONCLIPFewShotNet(model, exp_params['hyperparams']['coop'], use_embeddings=False)
 
-        model = CLIPFewShotModule(organizer.root_path+'outputs/', net, run_name, label_info, exp_params['descriptions']['splits'])
-        model.set_hyperparams(exp_params['hyperparams']['optim']['lr'], exp_params['hyperparams']['optim']['decay'])
+            all_states = list(Path(f"runs/{run_family}/{run_name}/{archi_save_name}/{n_samples}/val_{k}/outputs/states/").glob('**/*'))
+            top_model_metric = sorted([float(str(s).split("=")[-1].split(".ckpt")[0]) for s in all_states])[-1]
+            top_model_path = [s for s in all_states if str(top_model_metric) in str(s)][0]
 
-        checkpoint_callback = ModelCheckpoint(
-            monitor= 'val_mse',
-            dirpath= str(organizer.states_path),
-            filename='{epoch:02d}-{mse:.2f}',
-            save_top_k=1,
-            mode='min')
-
-        ##### SETUP TRAINER #####
-        tb_logger = TensorBoardLogger(save_dir=organizer.logs_path, name=run_name)
-        trainer = Trainer(  max_epochs=exp_params['hyperparams']['epochs'],
-                            gpus=exp_params['hyperparams']['gpu_nums'],
-                            # check_val_every_n_epoch=999,
-                            # #exp_params['hyperparams']['check_val_every_n'],
-                            callbacks=[checkpoint_callback],
-                            logger = tb_logger,
-                            # checkpoint_callback=False,
-                            fast_dev_run=False,
-                            # limit_train_batches=250,
-                            # limit_val_batches=10,
-                            # gradient_clip_val=1
-                        )
-
-        ##### FIT MODEL #####
-        print(f"fitting {run_name}")
-        trainer.fit(model, datamodule=data_module)
-        
-        ##### TEST MODEL #####
-        data_module = ClipDataLoader(   16,    
-                                        64,
-                                        data_class=SONData
-                                    )
-        
-        # # Enable loading of embeddings
-        model.net.coop_learner.use_embeddings = True
-
-        data_module.setup_data_classes( 
-                                        data_container,
-                                        exp_params['paths']['images_root'],
-                                        split_ids,
-                                        embeddings=exp_params['paths']['embeddings'],
-                                        transforms=transforms,
-                                        id_col=exp_params['descriptions']['id_col'],
-                                        splits=exp_params['descriptions']['splits']
-                                    )
-
-        for i, param in enumerate(model.parameters()):
-            param.requires_grad_(False)
-
-        best_model = next(Path(f"runs/{run_family}/{run_name}/{n_samples}/train/val_{k}/outputs/states/").glob('**/*'))
-        state = torch.load(best_model)['prompter']
-        model.load_state_dict(state, strict=False)    
-        
-        tester = Trainer(gpus=exp_params['hyperparams']['gpu_nums'], logger=tb_logger)
-        tester.test(model, datamodule=data_module) 
+            state = torch.load(top_model_path)['prompter']
+            model.load_state_dict(state, strict=False)    
+            
+            tester = Trainer(gpus=exp_params['hyperparams']['gpu_nums'], logger=tb_logger)
+            tester.test(model, datamodule=data_module) 

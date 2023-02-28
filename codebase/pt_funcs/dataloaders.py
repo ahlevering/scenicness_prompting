@@ -165,7 +165,7 @@ class ClipDataLoader(pl.LightningDataModule):
         return DataLoader(self.train_data, batch_size=self.batch_size, num_workers=self.workers, shuffle=True)
     
     def val_dataloader(self):
-        return DataLoader(self.val_data, batch_size=self.batch_size, num_workers=self.workers, shuffle=True)    
+        return DataLoader(self.val_data, batch_size=self.batch_size, num_workers=self.workers, shuffle=False)    
 
     def test_dataloader(self):
         return DataLoader(self.test_data, batch_size=self.batch_size, num_workers=self.workers, shuffle=False)
