@@ -1,0 +1,149 @@
+descriptions:
+  name: "score_regression"
+  exp_family: "son_few_shot_regression"
+  id_col: 'ID'
+  splits:
+    - "train"
+    - "val"
+
+paths:
+  labels_file:          "data/son_pts_with_bins.geojson" # "../son_det/data/source/son_splits.geojson"
+  splits_root:          "data/splits/"
+  images_root:          "../../../data/datasets/SoN/images/"
+  embeddings_root:      "data/embeddings/"
+
+hyperparams:
+  epochs: 25 # 25
+  k_folds: 5
+  check_val_every_n: 1
+  batch_size: 1
+  workers: 6
+  gpu_nums:
+    - 1
+  optim:
+    lr:
+      - 7.5 #25
+      - 5 #25
+      - 2.5
+    decay: 0  
+  coop:
+    m_words: 16
+    n_shots: 1    
+    ctx_init: "a photo which depicts a landscape"
+    prompts:
+            "A photo of a rolling countryside": 8.0
+            "A photo of a dramatic coastline": 9.0
+            "A photo of a tranquil river": 8.0
+            "A photo of a bustling market town": 7.0
+            "A photo of a misty forest": 8.0
+            "A photo of an abandoned industrial site": 4.0
+            "A photo of a quaint fishing village": 9.0
+            "A photo of a majestic castle": 10.0
+            "A photo of a desolate moorland": 6.0
+            "A photo of a picturesque village green": 8.0
+            "A photo of a futuristic cityscape": 6.0
+            "A photo of a serene beach": 9.0
+            "A photo of a verdant valley": 8.0
+            "A photo of a historic cathedral": 9.0
+            "A photo of a windswept hillside": 7.0
+            "A photo of a colourful garden": 8.0
+            "A photo of an imposing skyscraper": 5.0
+            "A photo of a quaint country pub": 7.0
+            "A photo of a pristine waterfall": 9.0
+            "A photo of a lively music festival": 6.0
+            "A photo of a charming thatched cottage": 8.0
+            "A photo of a rugged mountain range": 9.0
+            "A photo of a sleepy hamlet": 7.0
+            "A photo of a vibrant street market": 6.0
+            "A photo of a serene lake district": 9.0
+            "A photo of a gloomy urban alleyway": 3.0
+            "A photo of a quaint canal": 8.0
+            "A photo of a bustling train station": 6.0
+            "A photo of a wild and windswept beach": 8.0
+            "A photo of a quaint seaside resort": 7.0
+            "A photo of a tranquil rural churchyard": 8.0
+            "A photo of a lively city square": 7.0
+            "A photo of a rolling golf course": 6.0
+            "A photo of a lonely lighthouse": 8.0
+            "A photo of a majestic waterfall": 9.0
+            "A photo of a sleepy rural village": 7.0
+            "A photo of a bustling shopping centre": 5.0
+            "A photo of a serene riverside path": 8.0
+            "A photo of a peaceful country lane": 8.0
+            "A photo of a bustling city street": 6.0
+            "A photo of a desolate coastal plain": 6.0
+            "A photo of a quirky urban street art": 5.0
+            "A photo of a lively harbour": 7.0
+            "A photo of a picturesque thatched cottage": 8.0
+            "A photo of a tranquil Japanese garden": 9.0
+            "A photo of a majestic rolling hill": 8.0
+            "A photo of a gritty urban graffiti": 3.0
+            "A photo of a quaint rural windmill": 8.0
+            "A photo of a bustling farmer's market": 7.0
+            "A photo of a tranquil forest trail": 8.0
+            "A photo of a desolate urban wasteland": 3.0
+            "A photo of a charming cobbled street": 8.0
+            "A photo of a serene rural pond": 8.0
+            "A photo of a lively street festival": 6.0
+            "A photo of a majestic stately home": 9.0
+            "A photo of a peaceful woodland glade": 8.0
+            "A photo of a bustling city square": 7.0
+            "A photo of a wild and windswept moorland": 7.0
+            "A photo of a quaint rural bridge": 8.0
+            "A photo of a vibrant cultural festival": 6.0
+            "A photo of a tranquil rural meadow": 5.0
+
+transforms:
+  train:
+    to_tensor: true
+
+    size:
+      randomresizedcrop:
+        size: 224
+        scale: [0.6, 0.8]
+    
+    normalize:
+        method: "bicubic"
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.26130258, 0.27577711]
+
+    warps_and_distorts:
+      hflip: 0.5
+
+  val:
+    to_tensor: true
+
+    size:
+      resize:
+        size: 224
+    
+    normalize:
+        method: "bicubic"
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.26130258, 0.27577711]
+
+  test:
+    to_tensor: true
+
+    size:
+      resize:
+        size: 224
+    
+    normalize:
+        method: "bicubic"
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.26130258, 0.27577711]                
+
+      # randomposterize:
+      #   bits: 2
+      #   p: 0.1        
+ 
+      # jitter:
+      #   brightness: 0.03
+      #   contrast: 0.03
+      #   saturation: 0.03
+      #   hue: 0.03
+      
+      # randomgrayscale: 0.2
+
+      # rotation: 5

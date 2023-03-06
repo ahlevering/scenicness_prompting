@@ -171,29 +171,39 @@ class PromptLearnerWrapper(nn.Module):
 
         return prompts
 
-class CLIPLinearProbe(nn.Module):
-    def __init__(self, clip_model):
+class ContrastiveManyPromptsNet(nn.Module):
+    def __init__(self, model, prompts, prompt_values, use_embeddings=False):
         super().__init__()
-        self.image_encoder = clip_model.visual
-        self.logit_scale = clip_model.logit_scale
+        self.model = model
+        self.prompts = prompts
+        self.prompt_values = prompt_values
+        self.use_embeddings=use_embeddings
 
-        self.probe = nn.Linear(512, 1)
-        self.probe.bias.data.fill_(5)
+    def simple_contrastive(self, img_feats, txt_feats):
+        img_feats /= img_feats.norm(dim=-1, keepdim=True)
+        txt_feats /= txt_feats.norm(dim=-1, keepdim=True)
+        activations = (100.0 * img_feats @ txt_feats.T).softmax(dim=-1)
+        output = activations * self.prompt_values.unsqueeze(0)
+        # scenicness = (output.mean(-1) * 9) + 1
+        return output # scenicness
 
     def forward(self, image):
-        image = image.half() # Cast to half for compatibility
-        img_features = self.image_encoder(image)
-        scenicness = self.probe(img_features.float())
-        return scenicness
+        if self.use_embeddings:
+            img_feats = image
+        else:
+            img_feats = self.model.visual(image.half())
+        txt_feats = self.model.encode_text(self.prompts)        
+        output = self.simple_contrastive(img_feats, txt_feats)
+        return output
 
 class Baseline(nn.Module):
     def __init__(self, net, use_embeddings=False):
         super().__init__()
-        self.baseline_net = net.visual
+        self.baseline_net = net
         if self.baseline_net._get_name() == 'ModifiedResNet':
             in_dims = self.baseline_net.attnpool.c_proj.out_features
         else:
-            pass
+            in_dims = 768 # len(net.ln_post.weight)
             # Do some stuff for the ViT
         self.fc = nn.Linear(in_dims, 1, bias=True)
         with torch.no_grad():
@@ -214,7 +224,7 @@ class Baseline(nn.Module):
         if self.use_embeddings:
             features = image
         else:
-            features = self.baseline_net(image)
+            features = self.baseline_net(image.half())
         scenicness = self.fc(features.float())
         return scenicness
 
@@ -357,10 +367,12 @@ class CLIPFewShotModule(pl.LightningModule):
         for key in checkpoint['state_dict']:
             if "net.coop_learner.prompt_learner" in key:
                 prompt_state[key] = checkpoint['state_dict'][key]
-            elif "probe" in key:
-                prompt_state[key] = checkpoint['state_dict'][key]
-            elif "baseline_net" in key:
-                prompt_state[key] = checkpoint['state_dict'][key]
+            elif "frozen" in self.run_name:
+                if "net.fc" in key:
+                    prompt_state[key] = checkpoint['state_dict'][key]
+            elif "score_regression" in self.run_name:
+                if "prompt_values" in key:
+                    prompt_state[key] = checkpoint['state_dict'][key]
         checkpoint['prompter'] = prompt_state
         del checkpoint['state_dict']
 
@@ -383,6 +395,7 @@ class CLIPFewShotModule(pl.LightningModule):
 
     def training_epoch_end(self, train_outputs):
         self.end_epoch(self.train_tracker)
+        self.log('train_r2', self.train_tracker.variables['scenic'].metrics['rsquared'][-1])
         # if self.current_epoch == 0:
         #     for param in self.net.probe.parameters():
         #         param.requires_grad = True
@@ -444,6 +457,6 @@ class CLIPFewShotModule(pl.LightningModule):
             # optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.decay)
         else:
             optimizer = torch.optim.SGD(self.net.parameters(), lr=self.lr, weight_decay=self.decay) #, momentum=False)
-        scheduler1 = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.9, last_epoch=-1)
+        scheduler1 = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.95)
 
         return [optimizer], [scheduler1]
