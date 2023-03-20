@@ -7,7 +7,7 @@ descriptions:
     - "val"
 
 paths:
-  labels_file:          "data/son_pts_with_bins.geojson" # "../son_det/data/source/son_splits.geojson"
+  labels_file:          "../son_det/data/source/son_splits.geojson" # "data/son_pts_with_bins.geojson" # "../son_det/data/source/son_splits.geojson"
   splits_root:          "data/splits/"
   images_root:          "../../../data/datasets/SoN/images/"
   embeddings_root:      "data/embeddings/"
@@ -20,12 +20,13 @@ hyperparams:
   workers: 6
   gpu_nums:
     - 1
-  optim:
-    lr:
-      - 7.5 #25
-      - 5 #25
-      - 2.5
-    decay: 0  
+  alpha:
+    - 0.1
+    - 0.15
+    - 0.20
+    - 1
+    - 10
+    - 100            
   coop:
     m_words: 16
     n_shots: 1    

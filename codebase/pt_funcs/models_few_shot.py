@@ -13,6 +13,91 @@ from timm import create_model # ConvNext
 
 _tokenizer = _Tokenizer()
 
+
+class PP2Baseline(nn.Module):
+    def __init__(self, model, use_embeddings=False):
+        super().__init__()
+        self.model = model
+        self.use_embeddings = use_embeddings
+        self.son_rescale = True
+
+        if self.model._get_name() == 'ModifiedResNet':
+            in_dims = self.baseline_net.attnpool.c_proj.out_features
+        else:
+            in_dims = 768 # len(net.ln_post.weight)        
+        self.fc1 = nn.Linear(in_dims, 256, bias=True)
+        self.fc2 = nn.Linear(256, 6, bias=True)
+        # with torch.no_grad():
+        #     self.fc2.bias.fill_(0.5)        
+
+    def get_img_score(self, img):
+        x = self.model(img).float()
+        x = self.fc1(x).relu()
+        x = self.fc2(x)
+        return x # self.fc(x)
+
+    def forward(self, imgs, index=None):
+        if type(imgs) == dict:
+            img1_score = self.get_img_score(imgs['img_left'].half())
+            img2_score = self.get_img_score(imgs['img_right'].half())
+
+            cl = (img1_score - img2_score) + 0.5 # 0.5 == equal classification
+
+            # cl = self.assign_classification(margin)            
+        else:
+            cl = self.get_image_score(imgs)
+            # if self.son_rescale:
+            #     cl = (cl * 9) + 1
+        if not index == None:
+            cl = cl[:,index].flatten()
+        return cl
+
+    # def simple_contrastive(self, img_feats, txt_feats):
+    #     img_feats /= img_feats.norm(dim=-1, keepdim=True)
+    #     txt_feats /= txt_feats.norm(dim=-1, keepdim=True)
+
+    #     activations = (100.0 * img_feats @ txt_feats.T)# .softmax(dim=-1)
+    #     activations = activations.softmax(dim=-1)
+
+    #     ## Make contrast
+    #     neg_value_indices = (self.prompt_values == -1).nonzero(as_tuple=True)[0]
+    #     pos_value_indices = (self.prompt_values == 1).nonzero(as_tuple=True)[0]
+
+    #     pos_activations = torch.index_select(activations, 1, pos_value_indices).mean(-1)
+    #     neg_activations = torch.index_select(activations, 1, neg_value_indices).mean(-1)
+
+    #     difference = pos_activations - neg_activations
+    #     return difference
+
+    # def get_image_score(self, img, txt_feats):
+    #     if self.use_embeddings:
+    #         img_feats = img
+    #     else:
+    #         img_feats = self.model.visual(img)
+    #     txt_feats = self.model.encode_text(self.prompts)
+    #     scoring = self.simple_contrastive(img_feats, txt_feats)
+    #     return scoring
+
+    # def assign_classification(self, margin):
+    #     margin[margin > 0.65] = margin[margin > 0.65].ceil()
+    #     margin[margin < 0.35] = margin[margin < 0.35].floor()
+    #     margin[torch.logical_and(margin >= 0.35, margin <= 0.65)] = 0.5
+    #     return margin
+
+    # def forward(self, imgs):
+    #     txt_feats = self.model.encode_text(self.prompts)                
+    #     if type(imgs) == dict:
+    #         img1_score = self.get_image_score(imgs['img_left'], txt_feats)
+    #         img2_score = self.get_image_score(imgs['img_right'], txt_feats)
+    #         scores = torch.stack([img1_score, img2_score])
+    #         margin = scores.softmax(dim=0)[0] # Make comparison relative to first image
+    #         cl = self.assign_classification(margin)            
+    #     else:
+    #         cl = self.get_image_score(imgs, txt_feats)
+    #         # if self.son_rescale:
+    #         #     cl = (cl * 9) + 1
+    #     return cl
+
 class TextEncoder(nn.Module):
     def __init__(self, clip_model):
         super().__init__()
@@ -95,7 +180,6 @@ class PromptLearnerWrapper(nn.Module):
         # These token vectors will be saved when in save_model(),
         # but they should be ignored in load_model() as we want to use
         # those computed using the current class names
-        ## TODO: COPY START AND END OF SEQUENCE TOKENS
         self.register_buffer("token_prefix", embedding[:, :1, :])  # SOS
         self.register_buffer("token_suffix", embedding[:, 1 + self.n_ctx :, :])  # CLS, EOS
 
@@ -172,20 +256,23 @@ class PromptLearnerWrapper(nn.Module):
         return prompts
 
 class ContrastiveManyPromptsNet(nn.Module):
-    def __init__(self, model, prompts, prompt_values, use_embeddings=False):
+    def __init__(self, model, prompts, use_embeddings=False):
         super().__init__()
         self.model = model
         self.prompts = prompts
-        self.prompt_values = prompt_values
+        # self.prompt_values = prompt_values
         self.use_embeddings=use_embeddings
 
     def simple_contrastive(self, img_feats, txt_feats):
         img_feats /= img_feats.norm(dim=-1, keepdim=True)
         txt_feats /= txt_feats.norm(dim=-1, keepdim=True)
-        activations = (100.0 * img_feats @ txt_feats.T).softmax(dim=-1)
-        output = activations * self.prompt_values.unsqueeze(0)
-        # scenicness = (output.mean(-1) * 9) + 1
-        return output # scenicness
+        # txt_feats = txt_feats.T.repeat(1, 768, 61)
+        activations = (100.0 * img_feats @ txt_feats.T) #.softmax(dim=-1)
+        # activations = img_feats @ txt_feats.T
+        # activations = img_feats * txt_feats.T.repeat(1, 768, 61)
+        # output = activations * self.prompt_values.unsqueeze(0)
+        # 15 text-to-image similarities
+        return activations # output.mean(-1)        
 
     def forward(self, image):
         if self.use_embeddings:
@@ -228,21 +315,6 @@ class Baseline(nn.Module):
         scenicness = self.fc(features.float())
         return scenicness
 
-class CLIPLinearProbe(nn.Module):
-    def __init__(self, clip_model):
-        super().__init__()
-        self.image_encoder = clip_model.visual
-        self.logit_scale = clip_model.logit_scale
-
-        self.probe = nn.Linear(512, 1)
-        self.probe.bias.data.fill_(4.5)
-
-    def forward(self, image):
-        image = image.half() # Cast to half for compatibility
-        img_features = self.image_encoder(image)
-        scenicness = self.probe(img_features.float())
-        return scenicness
-
 class CoOpCLIPLearner(nn.Module):
     def __init__(self, clip_model, coop_hyperparams, use_embeddings=False):
         super().__init__()
@@ -283,31 +355,8 @@ class SONCLIPFewShotNet(nn.Module):
         scenicness = (pos_likelihood * 9) + 1
         return scenicness
 
-# class PP2CLIPNet(nn.Module):
-#     def __init__(self, clip_model, prompts=None):
-#         super().__init__()
-#         self.model = clip_model
-#         self.prompts = prompts
-
-#     def simple_contrastive(self, img_feats, txt_feats):
-#         img_feats /= img_feats.norm(dim=-1, keepdim=True)
-#         txt_feats /= txt_feats.norm(dim=-1, keepdim=True)
-#         ranking = (100.0 * img_feats @ txt_feats.T).softmax(dim=-1)
-#         return ranking[:,0]
-
-#     def forward(self, img):
-#         img_feats = self.model.encode_image(img)
-#         scores = []
-#         for score_prompts in self.prompts:
-#             score_responses = []
-#             txt_feats = self.model.encode_text(score_prompts)
-#             score_responses = self.simple_contrastive(img_feats, txt_feats)
-#             scores.append(score_responses)
-#         scores = torch.stack(scores)
-#         return scores
-
 class CLIPFewShotModule(pl.LightningModule):
-    def __init__(self, scatter_dir, net, run_name, label_info, splits):
+    def __init__(self, scatter_dir, net, run_name, label_info, splits, tracker_class):
         super().__init__()
         self.net = net
         self.label_info = label_info
@@ -316,11 +365,11 @@ class CLIPFewShotModule(pl.LightningModule):
         self.out_dir = scatter_dir
 
         if 'train' in splits:
-            self.train_tracker = VarTrackerCLIPExperiments(self.out_dir, 'train', label_info)
+            self.train_tracker = VarTrackerCLIPExperiments(self.out_dir, 'train', label_info, tracker_class)
         if 'val' in splits:
-            self.val_tracker = VarTrackerCLIPExperiments(self.out_dir, 'val', label_info)
+            self.val_tracker = VarTrackerCLIPExperiments(self.out_dir, 'val', label_info, tracker_class)
         if 'test' in splits or 'all' in splits:
-            self.test_tracker = VarTrackerCLIPExperiments(self.out_dir, 'test', label_info)
+            self.test_tracker = VarTrackerCLIPExperiments(self.out_dir, 'test', label_info, tracker_class)
 
 ### General iteration functions ###
     def forward(self, x):
@@ -395,7 +444,8 @@ class CLIPFewShotModule(pl.LightningModule):
 
     def training_epoch_end(self, train_outputs):
         self.end_epoch(self.train_tracker)
-        self.log('train_r2', self.train_tracker.variables['scenic'].metrics['rsquared'][-1])
+        if 'scenic' in self.train_tracker.variables:
+            self.log('train_r2', self.train_tracker.variables['scenic'].metrics['rsquared'][-1])        
         # if self.current_epoch == 0:
         #     for param in self.net.probe.parameters():
         #         param.requires_grad = True
@@ -415,28 +465,11 @@ class CLIPFewShotModule(pl.LightningModule):
 
     def validation_epoch_end(self, train_outputs):
         self.end_epoch(self.val_tracker)
-        self.log('val_r2', self.val_tracker.variables['scenic'].metrics['rsquared'][-1])
+        if 'scenic' in self.val_tracker.variables:
+            self.log('val_r2', self.val_tracker.variables['scenic'].metrics['rsquared'][-1])
+        else:
+            pass # all_r2s = [tracker.metrics['rsquared'][-1] for tracker in self.val_tracker.variables.values() if not len(tracker.metrics['rsquared']) == 0]
         self.num_steps = 0
-
-    # def optimizer_step(
-    #     self,
-    #     epoch,
-    #     batch_idx,
-    #     optimizer,
-    #     optimizer_idx,
-    #     optimizer_closure,
-    #     on_tpu=False,
-    #     using_lbfgs=False,
-    #     using_native_amp=False,
-    # ):
-    #     # update params
-    #     optimizer.step(closure=optimizer_closure)
-
-    #     # skip the first 500 steps
-    #     if self.trainer.global_step < 250:
-    #         lr_scale = min(1.0, float(self.trainer.global_step + 1) / 250.0)
-    #         for pg in optimizer.param_groups:
-    #             pg["lr"] = lr_scale * self.lr
 
 ### Testing ###
     def test_step(self, batch, batch_idx):
@@ -460,3 +493,56 @@ class CLIPFewShotModule(pl.LightningModule):
         scheduler1 = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.95)
 
         return [optimizer], [scheduler1]
+
+
+class CLIPComparisonModule(CLIPFewShotModule):
+    def __init__(self, scatter_dir, net, run_name, label_info, splits, tracker_class):
+        super().__init__(scatter_dir, net, run_name, label_info, splits, tracker_class)
+
+### General iteration functions ###
+    def forward(self, x):
+        x = self.net(x)
+        return x
+
+    def iteration_forward(self, batch, tracker, split):                
+        preds = self.net(batch['img'])#, int(batch['cat_index']))
+        loss = F.mse_loss(preds.double().squeeze(), batch['cat_score'].squeeze().double())
+
+        ## Get metadata
+        ids = batch['point_id_left']
+        lat = batch['lat'].cpu().numpy()
+        lon = batch['lon'].cpu().numpy()
+        preds_out = preds.detach().cpu()
+        preds_out[preds_out > 0.65] = preds_out[preds_out > 0.65].ceil()
+        preds_out[preds_out < 0.35] = preds_out[preds_out < 0.35].floor()
+        preds_out[torch.logical_and(preds_out >= 0.35, preds_out <= 0.65)] = 0.5        
+        preds_out = preds_out.numpy().flatten()
+        gt_out = batch['cat_score'].detach().cpu().numpy()
+
+        ## Create storage dicts
+        datapts = {'ids':ids, 'lat':lat, 'lon':lon, 'preds':preds_out, 'gt':gt_out, 'cat_name': batch['cat_name']}
+
+        ## Store to trackers
+        vars = ["lively", "depressing" , "boring", "beautiful", "safety", "wealthy"]
+        for var in vars:
+            var_indices = [i for i, c in enumerate(datapts['cat_name']) if c == var]
+            var_batches = {}
+            for key in datapts:
+                var_batches[key] = [datapts[key][i] for i in var_indices]
+            del var_batches['cat_name']
+            if not len(var_batches['gt']) == 0:
+                self.datapoints_to_tracker(tracker, var_batches, var)
+        self.log(f'{split}_mse', loss.detach().cpu(), on_step=False, on_epoch=True)        
+        return loss
+
+    def datapoints_to_tracker(self, tracker, datapts, var_name):
+        length_is_one = len(datapts['preds']) == 1
+        for attr in datapts:
+            if length_is_one:
+                pass #datapts[attr] = datapts[attr]
+                # ids = [int(ids)]         
+            elif type(datapts[attr]) != list:
+                datapts[attr] = datapts[attr].squeeze()
+            
+            # Store into tracker
+            tracker.variables[var_name].attrs[attr].append(datapts[attr])        

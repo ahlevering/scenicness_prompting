@@ -5,6 +5,68 @@ from torch import nn
 import pytorch_lightning as pl
 from codebase.experiment_tracking.run_tracker import VarTrackerCLIPExperiments
 
+class PP2ManyPrompts(nn.Module):
+    def __init__(self, model, prompts, prompt_values, use_embeddings=False, son_rescale=False):
+        super().__init__()
+        self.model = model
+        self.prompts = prompts
+        self.prompt_values = prompt_values
+        self.use_embeddings=use_embeddings
+        self.son_rescale = True
+
+    def simple_contrastive(self, img_feats, txt_feats):
+        img_feats /= img_feats.norm(dim=-1, keepdim=True)
+        txt_feats /= txt_feats.norm(dim=-1, keepdim=True)
+        activations = (100.0 * img_feats @ txt_feats.T)# .softmax(dim=-1)
+        output = activations * self.prompt_values.unsqueeze(0)
+        return output.mean(-1)
+
+    # def simple_contrastive(self, img_feats, txt_feats):
+    #     img_feats /= img_feats.norm(dim=-1, keepdim=True)
+    #     txt_feats /= txt_feats.norm(dim=-1, keepdim=True)
+
+    #     activations = (100.0 * img_feats @ txt_feats.T)# .softmax(dim=-1)
+    #     activations = activations.softmax(dim=-1)
+
+    #     ## Make contrast
+    #     neg_value_indices = (self.prompt_values == -1).nonzero(as_tuple=True)[0]
+    #     pos_value_indices = (self.prompt_values == 1).nonzero(as_tuple=True)[0]
+
+    #     pos_activations = torch.index_select(activations, 1, pos_value_indices).mean(-1)
+    #     neg_activations = torch.index_select(activations, 1, neg_value_indices).mean(-1)
+
+    #     difference = pos_activations - neg_activations
+    #     return difference
+
+    def get_image_score(self, img, txt_feats):
+        if self.use_embeddings:
+            img_feats = img
+        else:
+            img_feats = self.model.visual(img)
+        txt_feats = self.model.encode_text(self.prompts)
+        scoring = self.simple_contrastive(img_feats, txt_feats)
+        return scoring
+
+    def assign_classification(self, margin):
+        margin[margin > 0.65] = margin[margin > 0.65].ceil()
+        margin[margin < 0.35] = margin[margin < 0.35].floor()
+        margin[torch.logical_and(margin >= 0.35, margin <= 0.65)] = 0.5
+        return margin
+
+    def forward(self, imgs):
+        txt_feats = self.model.encode_text(self.prompts)                
+        if type(imgs) == dict:# > 1:
+            img1_score = self.get_image_score(imgs['img_left'], txt_feats)
+            img2_score = self.get_image_score(imgs['img_right'], txt_feats)
+            scores = torch.stack([img1_score, img2_score])
+            margin = scores.softmax(dim=0)[0] # Make comparison relative to first image
+            cl = self.assign_classification(margin)            
+        else:
+            cl = self.get_image_score(imgs, txt_feats)
+            # if self.son_rescale:
+            #     cl = (cl * 9) + 1
+        return cl
+
 class ContrastiveManyPromptsNet(nn.Module):
     def __init__(self, clip_model, prompts, prompt_values):
         super().__init__()
@@ -17,14 +79,13 @@ class ContrastiveManyPromptsNet(nn.Module):
         txt_feats /= txt_feats.norm(dim=-1, keepdim=True)
         activations = (100.0 * img_feats @ txt_feats.T).softmax(dim=-1)
         output = activations * self.prompt_values.unsqueeze(0)
-        return output.mean(-1)
+        return output.mean(-1) # Figure out case better
 
     def forward(self, img):
         img_feats = img 
         txt_feats = self.model.encode_text(self.prompts)        
         scenicness = self.simple_contrastive(img_feats, txt_feats)
         return scenicness
-
 
 class ContrastivePromptsNet(nn.Module):
     def __init__(self, clip_model, prompts=None):

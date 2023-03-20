@@ -7,8 +7,8 @@ from pathlib import Path
 def load_csv(fpath):
     with open(fpath, 'r', newline='') as csv_file:
         f = csv.reader(csv_file, quoting=csv.QUOTE_ALL)
-        rows = [row for row in f][0]
-        rows = [int(r) for r in rows] # Fix types
+        rows = [row for row in f]#[0]
+        # rows = [int(r) for r in rows] # Fix types
         return rows
 
 def make_crossval_splits(labels, n_crossval):

@@ -60,7 +60,7 @@ all_bins = set(set(pts_with_bins['bin']))
 for num in [25, 50, 75, 100, 175, 250, 325, 400, 500]:
     # Sample data from set
     n_samples = round(num/25)
-    sampled_pts = pts_with_bins.groupby(["centroid_k"]).sample(n=n_samples, random_state=113, replace=True)
+    sampled_pts = pts_with_bins.groupby(["centroid_k"]).sample(n=n_samples, random_state=113, replace=False)
 
     with open(f"{out_dir}/{num}.csv", 'w', newline='') as out_file:
         wr = csv.writer(out_file, quoting=csv.QUOTE_ALL)

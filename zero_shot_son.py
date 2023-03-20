@@ -1,130 +1,96 @@
+from copy import copy
 import yaml
-from datetime import datetime
-import warnings
+from pathlib import Path
 
 import clip
 import torch
 import numpy as np
+from torch import nn
+from torchvision.models import resnet50
 from pytorch_lightning.loggers.tensorboard import TensorBoardLogger
+from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import Trainer
 from pytorch_lightning.utilities.seed import seed_everything
 
-from codebase.pt_funcs.dataloaders import SONData, ClipDataLoader
-from codebase.pt_funcs.models_zero_shot import CLIPZeroShotModel, ContrastiveManyPromptsNet
+from codebase.pt_funcs.dataloaders import SoNDataContainer, SONData, ClipDataLoader
+from codebase.pt_funcs.models_few_shot import CLIPFewShotModule
+from codebase.pt_funcs.models_zero_shot import PP2ManyPrompts
+from codebase.utils.file_utils import load_csv, make_crossval_splits
+
+from codebase.experiment_tracking import process_yaml
 from codebase.experiment_tracking.save_metadata import ExperimentOrganizer
+from codebase.experiment_tracking.run_tracker import VarTrackerClassification
     
 ##### SET GLOBAL OPTIONS ######
 seed_everything(113)
 np.set_printoptions(suppress=True)
 torch.set_printoptions(sci_mode=False)
 
-#### Shutting up annoying warnings ####
-warnings.simplefilter(action='ignore', category=UserWarning)
-warnings.simplefilter(action='ignore', category=FutureWarning)
-
 ##### LOAD SET-UP FILE #####
 setup_file = "setup_files/test/son_zero_shot.yaml"
 with open(setup_file) as file:
     exp_params = yaml.full_load(file)
 
+data_container = SoNDataContainer(exp_params['paths']['labels_file'])    
+
+architecture = "ViT-L/14"
+archi_save_name = architecture.replace("/", "-") # Why did they use slashes in their naming!?
+
 run_name = exp_params['descriptions']['name']
 run_family = exp_params['descriptions']['exp_family']
 
-net, preprocess = clip.load('ViT-B/32')
-# model = model.to(device=exp_params['hyperparams']['gpu_num'])
+##### SETUP MODEL #####
+##### Encode prompts #####
+prompts = list(exp_params['hyperparams']['coop']['prompts'].keys())
+prompts = torch.cat([clip.tokenize(p+".") for p in prompts])
+prompts = prompts.to(device=exp_params['hyperparams']['gpu_nums'][0])
+net, preprocess = clip.load(architecture)
 
-##### SET UP TRANSFORMS #####
-transforms = {'test': None}
+values = list(exp_params['hyperparams']['coop']['prompts'].values())
+values = torch.tensor(values, requires_grad=False).to(device=exp_params['hyperparams']['gpu_nums'][0])
+
+net = PP2ManyPrompts(net, prompts, values, use_embeddings=True, son_rescale=True)
 
 label_info = {}
-label_info['scenic'] = {}
-label_info['scenic']['ylims'] = [1, 10]
-
-##### SETUP LOADERS #####
-data_module = ClipDataLoader( exp_params['hyperparams']['workers'],    
-                              exp_params['hyperparams']['batch_size'],
-                              data_class=SONData
-                            )
-
-data_module.setup_data_classes( exp_params['paths']['labels_file'],
-                                exp_params['paths']['images_root'],
-                                split_ids=None,
-                                embeddings=exp_params['paths']['embeddings'],
-                                transforms=transforms,
-                                id_col=exp_params['descriptions']['id_col'],
-                                splits=exp_params['descriptions']['splits']
-                            )
-
-loader_emulator = next(iter(data_module.test_data))
-
-##### STORE ENVIRONMENT AND FILES #####
-run_time = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-print(f"\nExperiment start: {run_time}\n")
-base_path = f"runs/{run_family}/{run_name}/{run_time}/train/"
-organizer = ExperimentOrganizer(base_path)
-organizer.store_yaml(setup_file)
-organizer.store_environment()
-organizer.store_codebase(['.py'])
-
-##### SETUP MODEL #####
-# all_data = {"A photo of a natural area.":6,
-#             "A photo of snow capped mountains":10,
-#             "A photo of a scenic lake.":9,
-#             "A photo of a scenic and snowy wonderland":10,
-#             "A photo of an idilic landscape":9,
-#             "A photo of a carpet of flowers in the forest":9,
-#             "A photo of a field.":6,
-#             "A photo of an unremarkable rural area.":5,
-#             "A photo of an urban area.":4,
-#             "A photo of a highway.":1,
-#             "A photo of a construction area.":1,
-#             "A photo of vehicles.":1,
-#             "Man made metal structures.":1,
-#             "An urban park":5,
-#             "Agricultural machinery":2,
-#             "A road between fields":3}
-
-# contrastive_prompts = list(all_data.keys())
-# promps_values = list(all_data.values())
-
-all_data = ["A photo of a natural area.", 6,
-                        "A photo of snow capped mountains", 10,
-                        "A photo of a scenic lake.", 9,
-                        "A photo of a scenic and snowy wonderland", 10,
-                        "A photo of an idilic landscape", 9,
-                        "A carpet of flowers in the forest", 9,
-                        "A photo of a field.", 6,
-                        "A photo of an unremarkable rural area.", 5,
-                        "A photo of an urban area.", 4,
-                        "A photo of a highway.", 1,
-                        "A photo of a construction area.", 1,
-                        "A photo of vehicles.", 1,
-                        "Man made metal structures.", 1,
-                        "An urban park", 5,
-                        "Agricultural machinery", 2,
-                        "A road between fields", 3]
+for label in ["scenic"]:
+    label_info[label] = {}
+    label_info[label]['index'] = 0
+    label_info[label]['ylims'] = [0, 1]
 
 
-contrastive_prompts = all_data[0:-2:2]
-promps_values = all_data[1:-1:2]
+with torch.no_grad():
+        ##### STORE ENVIRONMENT AND FILES #####
+    base_path = f"runs/{run_family}/{run_name}"
+    organizer = ExperimentOrganizer(base_path)
+    organizer.store_yaml(setup_file)
+    organizer.store_environment()
+    organizer.store_codebase(['.py'])
 
-prompts = torch.cat([clip.tokenize(p) for p in contrastive_prompts])
-prompts = prompts.to(device=exp_params['hyperparams']['gpu_num'])
+    model = CLIPFewShotModule(organizer.root_path+'/outputs/', net, run_name, label_info, ['all'], VarTrackerClassification)
 
+    # all_split_ids = load_csv(exp_params['paths']['splits_root']+f'{n_samples}.csv')
+    # Subdivide sampled indices into k-fold bins
+    ##### TEST MODEL #####
+    ## Enable loading of embeddings
+    data_module = ClipDataLoader(   8,    
+                                    64,
+                                    data_class=SONData
+                                ) 
 
-promps_values = torch.tensor(promps_values).to(device=exp_params['hyperparams']['gpu_num'])
+    data_module.setup_data_classes( 
+                                    data_container,
+                                    exp_params['paths']['images_root'],
+                                    None,
+                                    embeddings=exp_params['paths']['embeddings_root']+f"{archi_save_name}.pkl",
+                                    transforms={'test':None},
+                                    id_col=exp_params['descriptions']['id_col'],
+                                    splits=['all'] 
+                                )
+    
+    model.net.use_embeddings = True
 
-
-net = ContrastiveManyPromptsNet(net, prompts,promps_values)
-model = CLIPZeroShotModel(organizer.root_path+'outputs/', net, run_name, label_info, ['test'])
-
-##### SETUP TESTER #####
-tb_logger = TensorBoardLogger(save_dir=organizer.logs_path, name=run_name)
-trainer = Trainer(  gpus=[exp_params['hyperparams']['gpu_num']],
-                    logger = tb_logger,
-                    fast_dev_run=False,
-                )
-
-##### FIT MODEL #####
-print(f"fitting {run_name}")
-trainer.test(model, datamodule=data_module)
+    for i, param in enumerate(model.parameters()):
+        param.requires_grad_(False)    
+    tb_logger = TensorBoardLogger(save_dir=organizer.logs_path, name=run_name)
+    tester = Trainer(gpus=exp_params['hyperparams']['gpu_nums'], logger=tb_logger)
+    tester.test(model, datamodule=data_module)

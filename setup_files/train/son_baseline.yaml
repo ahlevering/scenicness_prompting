@@ -1,11 +1,10 @@
 descriptions:
   name: "baseline_frozen"
-  exp_family: "son_few_shot"
+  exp_family: "son_few_shot_baseline"
   id_col: 'ID'
   splits:
     - "train"
     - "val"
-    - "test"
 
 paths:
   labels_file:          "data/son_pts_with_bins.geojson" # "../son_det/data/source/son_splits.geojson"
@@ -14,16 +13,19 @@ paths:
   embeddings_root:      "data/embeddings/"
 
 hyperparams:
-  epochs: 25
+  epochs: 25 # 25
   k_folds: 5
   check_val_every_n: 1
   batch_size: 1
-  workers: 16
+  workers: 6
   gpu_nums:
     - 1
 
   optim:
-    lr: 0.0005 #25
+    lr:
+      - 0.00075 #25
+      - 0.0005 #25
+      - 0.00025
     decay: 0  
 
 transforms:

@@ -28,8 +28,10 @@ hyperparams:
     class_pos: "end"
     m_words: 16
     n_shots: 1    
-    ctx_init_low: "A photo that is" # "a photo of an area that is"
-    ctx_init_high: "A photo of an area that is extremely" # "a photo of an area that is"
+    # ctx_init: "A photo of an area that is extremely"
+    ctx_init:
+      - "A photo of" # "a photo of an area that is"
+      - "A photo of an area that is extremely" # "a photo of an area that is"
     class_context: False
   optim:
     # lr: 0.005
