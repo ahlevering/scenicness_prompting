@@ -18,31 +18,32 @@ def load_pickle(pickle_file):
     return matches
 
 # Filepaths
-labels_file = "data/photo_df_scores.csv"
+# labels_file = "data/PP2_pts_with_bins.geojson" # Replace with original file if needed
 images_root = "../../../data/datasets/PlacePulse2/final_photo_dataset/"
-ratings = "../../../data/datasets/PlacePulse2/metadata/votes.csv"
+# ratings = "../../../data/datasets/PlacePulse2/metadata/votes.csv"
+ratings = "data/votes.csv"
 embeddings_file = "data/embeddings/ViT-L-14_pp2.pkl"
 bins_file = "data/PP2_pts_with_bins.geojson"
 
-data = PP2DataContainer(labels_file).labels
+# data = PP2DataContainer(labels_file).labels
 all_votes = load_csv(ratings)
 all_votes = pd.DataFrame(all_votes)
 all_votes.columns = all_votes.iloc[0]
 all_votes = all_votes[1:]
 embeddings = load_pickle(embeddings_file)
 
-to_remove = []
-img_root = "../../../data/datasets/PlacePulse2/final_photo_dataset/"
-for pt in all_votes['left_id']:
-    if not Path(img_root+f"{pt}.jpg").is_file():
-        to_remove.append(pt)
-for pt in all_votes['right_id']:
-    if not Path(img_root+f"{pt}.jpg").is_file():
-        to_remove.append(pt)        
+# to_remove = []
+# img_root = "../../../data/datasets/PlacePulse2/final_photo_dataset/"
+# for pt in all_votes['left_id']:
+#     if not Path(img_root+f"{pt}.jpg").is_file():
+#         to_remove.append(pt)
+# for pt in all_votes['right_id']:
+#     if not Path(img_root+f"{pt}.jpg").is_file():
+#         to_remove.append(pt)        
 
-all_votes = all_votes[~all_votes['left_id'].isin(to_remove)]
-all_votes = all_votes[~all_votes['right_id'].isin(to_remove)]
-all_votes.to_csv("data/votes.csv")
+# all_votes = all_votes[~all_votes['left_id'].isin(to_remove)]
+# all_votes = all_votes[~all_votes['right_id'].isin(to_remove)]
+# all_votes.to_csv("data/votes.csv")
 
 if not Path(bins_file).exists():
     km = KMeans(n_clusters=25)
@@ -69,9 +70,10 @@ all_bins = set(set(pts_with_bins['bin']))
 
 votes_with_metadata = all_votes.merge(pts_with_bins, how="inner", left_on="left_id", right_on="Picture")
 # votes_with_metadata = votes_with_metadata[votes_with_metadata['category'].isin(['safety'])]
-for num in [25, 50, 75, 100, 175, 250, 325, 400, 500]:
+for num in [100000]:# [25, 50, 75, 100, 175, 250, 325, 400, 500]:
     # Sample each group
-    grouped_votes = pd.DataFrame(votes_with_metadata.groupby(["bin", "category"]))
+    # grouped_votes = pd.DataFrame(votes_with_metadata.groupby(["bin", "category"]))
+    grouped_votes = pd.DataFrame(votes_with_metadata.groupby(["left_id", "right_id"]))
     sampled_groups = grouped_votes[1].sample(n=num, random_state=113, replace=False)
     sampled_comparisons = []
     for k in sampled_groups:

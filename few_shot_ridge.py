@@ -33,7 +33,7 @@ run_family = exp_params['descriptions']['exp_family']
 
 # Tokenize prompts
 prompts = list(exp_params['hyperparams']['coop']['prompts'].keys())
-prompts = torch.cat([clip.tokenize(p+".") for p in prompts])
+prompts = torch.cat([clip.tokenize(p) for p in prompts])
 prompts = prompts.to(device=exp_params['hyperparams']['gpu_nums'][0])
 
 # Make weights learnable
@@ -70,85 +70,94 @@ with torch.no_grad():
             all_activations[str(id)] = batch_activations[index]
         i += 128
 
-with torch.no_grad():
-    for n_samples in [25, 50, 100, 250, 500]:
-        alpha_rsquared = []        
-        for alpha in exp_params['hyperparams']['alpha']:
-            all_split_ids = load_csv(exp_params['paths']['splits_root']+f'{n_samples}.csv')[0]
-            all_split_ids = [int(r) for r in all_split_ids]
-            train_ids, val_ids = make_crossval_splits(all_split_ids, k_folds)
-            k_rsquared = []
-            for k in range(k_folds):
-                split_ids = {'train': train_ids[k], 'val': val_ids[k]}
-                base_path = f"runs/{run_family}/{run_name}/{n_samples}/{alpha}/split_{k}/"
-                organizer = ExperimentOrganizer(base_path)  
+# with torch.no_grad():
+for n_samples in [500]: # [25, 50, 100, 250, 500]:
+    alpha_rsquared = []        
+    for alpha in exp_params['hyperparams']['alpha']:
+        all_split_ids = load_csv(exp_params['paths']['splits_root']+f'{n_samples}.csv')[0]
+        all_split_ids = [int(r) for r in all_split_ids]
+        train_ids, val_ids = make_crossval_splits(all_split_ids, k_folds)
+        k_rsquared = []
+        for k in range(k_folds):
+            split_ids = {'train': train_ids[k], 'val': val_ids[k]}
+            base_path = f"runs/{run_family}/{run_name}/{n_samples}/{alpha}/split_{k}/"
+            organizer = ExperimentOrganizer(base_path)  
 
-                train_gt = labels[labels['ID'].isin(split_ids['train'])]['Average'].values
-                val_gt = labels[labels['ID'].isin(split_ids['val'])]['Average'].values
-                train_activations = np.stack([all_activations[str(id_num)] for id_num in split_ids['train']])
-                # train_embeddings = [embeddings[str(k)].to(device=exp_params['hyperparams']['gpu_nums'][0]) for k in split_ids['train']]
-                # train_activations = np.stack([feature_extractor.forward(s).detach().cpu().numpy().squeeze() for s in train_embeddings])
-                
-                rr_model = Ridge(alpha=alpha)
-                rr_model = Ridge(alpha=0.9)
-                rr_model = rr_model.fit(train_activations, train_gt)
-                # tes = rr_model.fit(train_gt.reshape(-1,1), train_gt)
+            train_gt = labels[labels['ID'].isin(split_ids['train'])]['Average'].values
+            val_gt = labels[labels['ID'].isin(split_ids['val'])]['Average'].values
+            train_batch = np.stack([all_activations[str(id_num)] for id_num in split_ids['train']])
+            with torch.no_grad():
+                train_embeddings = [embeddings[str(k)].to(device=exp_params['hyperparams']['gpu_nums'][0]) for k in split_ids['train']]
+                train_batch = np.stack([feature_extractor.forward(s).detach().cpu().numpy().squeeze() for s in train_embeddings])
+            
+            train_batch = torch.stack([embeddings[str(id_num)] for id_num in split_ids['train']])
+            rr_model = Ridge(alpha=0.1)
+            rr_model = rr_model.fit(train_batch, train_gt)
+            train_preds = rr_model.predict(train_batch)
+            _, _, rsquared, _, _ = linregress(train_preds, train_gt)
 
-                val_activations = np.stack([all_activations[str(id_num)] for id_num in split_ids['val']])
-                # val_embeddings = [embeddings[str(k)].to(device=exp_params['hyperparams']['gpu_nums'][0]) for k in split_ids['val']]
-                # val_activations = np.stack([feature_extractor.forward(s).detach().cpu().numpy().squeeze() for s in val_embeddings])
-                val_preds = rr_model.predict(val_activations)
-                # val_preds = rr_model.predict(val_gt.reshape(-1,1))
+            val_batch = torch.stack([embeddings[str(id_num)] for id_num in split_ids['val']])
+            val_preds = rr_model.predict(val_batch)
+            _, _, rsquared, _, _ = linregress(val_preds, val_gt)            
 
-                _, _, rsquared, _, _ = linregress(val_preds, val_gt)
-                # with open(str(organizer.states_path)+f"{rsquared}.pkl", 'wb') as f:
-                #     pickle.dump(rr_model, f)
+            # val_activations = np.stack([all_activations[str(id_num)] for id_num in split_ids['val']])
+            with torch.no_grad():
+                val_embeddings = [embeddings[str(k)].to(device=exp_params['hyperparams']['gpu_nums'][0]) for k in split_ids['val']]
+                val_activations = np.stack([feature_extractor.forward(s).detach().cpu().numpy().squeeze() for s in val_embeddings])
+            val_preds = rr_model.predict(val_activations)
+            # val_preds = rr_model.predict(val_gt.reshape(-1,1))
 
-                k_rsquared.append(rsquared)
-            # Aggregate metric over all k splits
-            alpha_rsquared.append(np.mean(k_rsquared))
+            _, _, rsquared, _, _ = linregress(val_preds, val_gt)
+            
+            # with open(str(organizer.states_path)+f"{rsquared}.pkl", 'wb') as f:
+            #     pickle.dump(rr_model, f)
 
-        ##### Test Model #####
-        test_ids = data_container.labels[~data_container.labels['ID'].isin(all_split_ids)]
-        test_ids = list(test_ids['ID'].values)
-        test_split_gt = labels[labels['ID'].isin(test_ids)]['Average'].values
+            k_rsquared.append(rsquared)
+        # Aggregate metric over all k splits
+        alpha_rsquared.append(np.mean(k_rsquared))
 
-        ##### STORE ENVIRONMENT AND FILES #####
-        base_path = f"runs/{run_family}/{run_name}/{n_samples}/best/{alpha}"
-        organizer = ExperimentOrganizer(base_path)
-        organizer.store_yaml(setup_file)
-        organizer.store_environment()
-        organizer.store_codebase(['.py'])
+    ##### Test Model #####
+    test_ids = data_container.labels[~data_container.labels['ID'].isin(all_split_ids)]
+    test_ids = list(test_ids['ID'].values)
+    test_split_gt = labels[labels['ID'].isin(test_ids)]['Average'].values
 
-        # Get hyperparam performance
-        best_index = np.argmax(alpha_rsquared)
-        best_alpha = exp_params['hyperparams']['alpha'][best_index]
+    ##### STORE ENVIRONMENT AND FILES #####
+    base_path = f"runs/{run_family}/{run_name}/{n_samples}/best/{alpha}"
+    organizer = ExperimentOrganizer(base_path)
+    organizer.store_yaml(setup_file)
+    organizer.store_environment()
+    organizer.store_codebase(['.py'])
 
-        all_split_activations = np.stack([all_activations[str(id_num)] for id_num in all_split_ids])
-        all_split_gt = labels[labels['ID'].isin(all_split_ids)]['Average']
+    # Get hyperparam performance
+    best_index = np.argmax(alpha_rsquared)
+    best_alpha = exp_params['hyperparams']['alpha'][best_index]
 
-        rr_model = Ridge(alpha=best_alpha)
-        rr_model = rr_model.fit(all_split_activations, all_split_gt)
+    all_split_activations = np.stack([all_activations[str(id_num)] for id_num in all_split_ids])
+    all_split_gt = labels[labels['ID'].isin(all_split_ids)]['Average']
 
-        # test_split_embeddings = [embeddings[str(k)].to(device=exp_params['hyperparams']['gpu_nums'][0]) for k in test_ids]
-        # test_split_activations = np.stack([feature_extractor.forward(s).detach().cpu().numpy().squeeze() for s in test_split_embeddings])        
-        test_split_activations = np.stack([all_activations[str(id_num)] for id_num in test_ids])
-        test_split_preds = rr_model.predict(test_split_activations)
+    rr_model = Ridge(alpha=0.1)# best_alpha)
+    rr_model = rr_model.fit(all_split_activations, all_split_gt)
+    preds = rr_model.predict(all_split_activations)
+    _, _, rsquared, _, _ = linregress(all_split_activations[:3,:], all_split_gt[:3])
 
-        _, _, rsquared, _, _ = linregress(test_split_preds, test_split_gt)
-        rmse = round(mean_squared_error(test_split_preds, test_split_gt, squared=False), 4)
-        tau_corr = round(mean_squared_error(test_split_preds, test_split_gt, squared=False), 4)
-        tau = round(kendalltau(test_split_preds, test_split_gt).correlation)
+    # test_split_embeddings = [embeddings[str(k)].to(device=exp_params['hyperparams']['gpu_nums'][0]) for k in test_ids]
+    # test_split_activations = np.stack([feature_extractor.forward(s).detach().cpu().numpy().squeeze() for s in test_split_embeddings])        
+    test_split_activations = np.stack([all_activations[str(id_num)] for id_num in test_ids])
+    test_split_preds = rr_model.predict(test_split_activations)
 
-        best_performances["n_samples"].append(n_samples)
-        best_performances["alpha"].append(best_alpha)
-        best_performances["rmse"].append(rmse)
-        best_performances["rsquared"].append(rsquared)
-        best_performances["tau"].append(tau)
-        # best_performances[f'{n_samples}'] = {'rmse': rmse, 'rsquared': rsquared, 'tau_corr':tau_corr}
+    _, _, rsquared, _, _ = linregress(test_split_preds, test_split_gt)
+    rmse = round(mean_squared_error(test_split_preds, test_split_gt, squared=False), 4)
+    tau = kendalltau(test_split_preds, test_split_gt).correlation
 
-        with open(str(organizer.states_path)+f"{rsquared}.pkl", 'wb') as f:
-            pickle.dump(rr_model, f)
+    best_performances["n_samples"].append(n_samples)
+    best_performances["alpha"].append(best_alpha)
+    best_performances["rmse"].append(rmse)
+    best_performances["rsquared"].append(rsquared)
+    best_performances["tau"].append(tau)
+    # best_performances[f'{n_samples}'] = {'rmse': rmse, 'rsquared': rsquared, 'tau_corr':tau_corr}
+
+    with open(str(organizer.states_path)+f"{rsquared}.pkl", 'wb') as f:
+        pickle.dump(rr_model, f)
 
 best_performances_df = pd.DataFrame(best_performances)
 best_performances_df.to_csv(f"runs/{run_family}/{run_name}/metrics.csv", columns=columns)

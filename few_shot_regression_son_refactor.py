@@ -78,6 +78,71 @@ organizer.store_codebase(['.py'])
 
 ##### SETUP MODEL #####
 
+def setup_experiment(exp_params):
+    split_ids = {'train': exp_params['train_ids'], 'val': exp_params['val_ids']}
+    
+    label_info = {}
+    label_info['scenic'] = {}
+    label_info['scenic']['ylims'] = [1, 10]
+
+    ##### SETUP LOADERS #####
+    data_module = ClipDataLoader(exp_params['hyperparams']['workers'],    
+                                exp_params['hyperparams']['batch_size'],
+                                data_class=SONData)
+
+    data_module.setup_data_classes(data_container,
+                                    exp_params['paths']['images_root'],
+                                    split_ids,
+                                    embeddings=None,
+                                    transforms=transforms,
+                                    id_col=exp_params['descriptions']['id_col'],
+                                    splits=['train', 'val'])
+
+    loader_emulator = next(iter(data_module.train_data))
+
+    ##### STORE ENVIRONMENT AND FILES #####
+    base_path = f"runs/{exp_params['run_family']}/{exp_params['run_name']}/{exp_params['n_samples']}/{exp_params['lr']}/val_{exp_params['k']}/"
+    organizer = ExperimentOrganizer(base_path)
+    organizer.store_yaml(setup_file)
+    organizer.store_environment()
+    organizer.store_codebase(['.py'])
+
+    ##### SETUP MODEL #####
+    model, preprocess = clip.load(exp_params['architecture'])
+
+    # Freeze feature extractors
+    if not 'unfrozen' in exp_params['run_name']:
+        for i, param in enumerate(model.parameters()):
+            param.requires_grad_(False)
+    # Load model class
+    net = ContrastiveManyPromptsNet(model, exp_params['prompts'], exp_params['values'], use_embeddings=False)
+
+    # Setup training wrapper
+    model = CLIPFewShotModule(organizer.root_path+'outputs/', net, exp_params['run_name'], label_info, ['train', 'val'])
+    model.set_hyperparams(exp_params['lr'], exp_params['hyperparams']['optim']['decay'])
+
+    checkpoint_callback = ModelCheckpoint(
+        monitor= 'val_r2',
+        dirpath= str(organizer.states_path),
+        filename='{epoch:02d}-{val_r2:.4f}',
+        save_top_k=8,
+        mode='max')
+
+    ##### SETUP TRAINER #####
+    tb_logger = TensorBoardLogger(save_dir=organizer.logs_path, name=exp_params['run_name'])
+    trainer = Trainer(max_epochs=exp_params['hyperparams']['epochs'],
+                      gpus=exp_params['hyperparams']['gpu_nums'],
+                      callbacks=[checkpoint_callback],
+                      logger = tb_logger,
+                      fast_dev_run=False,
+                      # limit_train_batches=250,
+                      # limit_val_batches=10,
+                     )
+
+    ##### FIT MODEL #####
+    print(f"fitting {exp_params['run_name']}")
+    trainer.fit(model, datamodule=data_module)
+
 # Tokenize prompts
 prompts = list(exp_params['hyperparams']['coop']['prompts'].keys())
 prompts = torch.cat([clip.tokenize(p+".") for p in prompts])

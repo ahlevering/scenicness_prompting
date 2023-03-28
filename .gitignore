@@ -11,6 +11,7 @@ __pycache__/
 runs/
 data/embeddings.pkl
 data/photo_df_scores.csv
+data/votes.csv
 
 # Distribution / packaging
 .Python
