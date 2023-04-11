@@ -7,6 +7,7 @@ import torch
 import numpy as np
 from pytorch_lightning.utilities.seed import seed_everything
 
+from codebase.utils.file_utils import load_csv
 from codebase.pt_funcs.dataloaders import SONData, ClipDataLoader, SoNDataContainer
 from codebase.experiment_tracking import process_yaml
     
@@ -58,3 +59,13 @@ for architecture in ["RN50", "ViT-L/14"]:
         archi_save_name = architecture.replace("/", "-") # Why did they use slashes in their naming!?
         with open(f"{out_dir}{archi_save_name}.pkl", 'wb') as f:
             pickle.dump(embeddings, f)
+
+## Make debugging dataset
+debug_ids = load_csv(exp_params['paths']['splits_root']+f'500.csv')[0]
+debug_labels = data_container.labels[data_container.labels['ID'].isin(debug_ids)]
+debug_labels.to_file("data/son_debug_500.geojson", driver="GeoJSON")
+
+debug_ids = [str(i) for i in debug_ids]
+debug_embeddings = { k:v for (k,v) in data_container.embeddings.items() if k in debug_ids}
+with open(f"data/embeddings/ViT-L-14_son_debug_500.pkl", 'wb') as f:
+    pickle.dump(debug_embeddings, f)

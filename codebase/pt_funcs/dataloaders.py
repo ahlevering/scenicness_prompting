@@ -19,12 +19,12 @@ def load_pickle(pickle_file):
     return matches
 
 class SONData(Dataset):
-    def __init__(self, exp_data, imgs_root, transforms, sample_ids=None, embeddings=None):
+    def __init__(self, exp_data, imgs_root, transforms, sample_ids=None, use_embeddings=False):
         self.images_root = imgs_root
         self.transforms = transforms
         self.exp_data = exp_data
         self.sample_ids = sample_ids
-        self.embeddings = embeddings
+        self.use_embeddings = use_embeddings
 
     def __getitem__(self, index):
         # Load labels
@@ -35,8 +35,8 @@ class SONData(Dataset):
             datapoint = self.exp_data.labels.iloc[index]
             point_id = datapoint['ID']
 
-        if self.embeddings:
-            img = self.embeddings[str(point_id)]
+        if self.use_embeddings:
+            img = self.exp_data.embeddings[str(point_id)]
         else:
             img = self.get_image(datapoint["folder_num"], point_id)
 
@@ -64,8 +64,12 @@ class SONData(Dataset):
         return length
 
 class SoNDataContainer():
-    def __init__(self, splits_file):
+    def __init__(self, splits_file, embeddings=None):
         self.labels = gpd.read_file(splits_file)
+        if embeddings:
+            self.embeddings = load_pickle(embeddings)
+        else:
+            self.embeddings = None
 
 # class PP2Dataset(Dataset):
 #     """Places Pulse 2 dataset."""
@@ -138,7 +142,7 @@ class PP2RankingsData(Dataset):
         self.embeddings = embeddings
 
         self.scores = ["lively", "depressing" , "boring", "beautiful", "safety", "wealthy"]
-        self.winner_scores = {'left':1.0, 'equal':0.5, 'right':0.0} # Target softmax confidence of left image
+        self.winner_scores = {'left':1.0, 'equal':0.0, 'right':-1.0} # Target softmax confidence of left image
 
     def __getitem__(self, index):
         # Load labels
@@ -256,41 +260,35 @@ class ClipDataLoader(pl.LightningDataModule):
         # self.dims = None    
         self.splits = None    
 
-    def setup_data_classes(self, data_container, imgs_root, split_ids, embeddings=None, transforms=None, id_col='ID', splits=['train', 'val']):
+    def setup_data_classes(self, data_container, imgs_root, split_ids, embeddings_policy, transforms=None, splits=['train', 'val']):
         self.exp_data = data_container
-        if embeddings:
-            embeddings = load_pickle(embeddings)
 
         if 'all' in splits:
             self.test_data = self.data_class(self.exp_data,
-                                             imgs_root,                                             
+                                             imgs_root,                                      
                                              transforms['test'],
-                                             None,
-                                             embeddings)
+                                             embeddings_policy['test'])
 
         if 'train' in splits:
-            # train_split_labels = self.exp_data.labels[self.exp_data.labels['split'].isin(['train'])]
-            # def __init__(self, exp_data, imgs_root, transforms, sample_ids=None, embeddings=None):            
-            self.train_data = self.data_class(  self.exp_data,
-                                                imgs_root,
-                                                transforms['train'],
-                                                split_ids['train'],
-                                                embeddings)
+            self.train_data = self.data_class(self.exp_data,
+                                              imgs_root,
+                                              transforms['train'],
+                                              split_ids['train'],
+                                              embeddings_policy['train'])
 
         if 'val' in splits:
-            # train_split_labels = self.exp_data.labels[self.exp_data.labels['split'].isin(['train'])]
-            self.val_data = self.data_class(    self.exp_data,
-                                                imgs_root,
-                                                transforms['val'],
-                                                split_ids['val'],
-                                                embeddings)
+            self.val_data = self.data_class(self.exp_data,
+                                            imgs_root,
+                                            transforms['val'],
+                                            split_ids['val'],
+                                            embeddings_policy['val'])
 
         if 'test' in splits:
             self.test_data = self.data_class(self.exp_data,
                                              imgs_root,                                             
                                              transforms['test'],
                                              split_ids['test'],
-                                             embeddings)
+                                             embeddings_policy['test'])
                                                 
         self.splits = splits
 
