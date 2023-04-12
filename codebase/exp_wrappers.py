@@ -8,7 +8,7 @@ from pytorch_lightning.loggers.tensorboard import TensorBoardLogger
 from codebase.experiment_tracking.save_metadata import ExperimentOrganizer
 from codebase.experiment_tracking import process_yaml
 from codebase.pt_funcs.dataloaders import ClipDataLoader
-from codebase.pt_funcs.models_few_shot import SONCLIPFewShotNet, SONLinearProbe
+from codebase.pt_funcs.models_few_shot import SONCLIPFewShotNet, CLIPMulticlassFewShotNet, SONLinearProbe
 
 from codebase.utils.file_utils import load_csv, make_crossval_splits
 
@@ -52,7 +52,7 @@ def setup_data_module(data_class, exp_params, data_container, transforms, split_
                                    embeddings_policy=exp_params['hyperparams']['use_precalc_embeddings'],
                                    transforms=transforms,
                                    splits=exp_params['descriptions']['splits'])
-    loader_emulator = next(iter(data_module.train_data)) # Test if loader can return a batch
+    # loader_emulator = next(iter(data_module.train_data)) # Test if loader can return a batch
     return data_module
 
 def setup_trainer(organizer, run_name, exp_params, to_monitor="val_r2", monitor_mode='max'):
@@ -63,7 +63,7 @@ def setup_trainer(organizer, run_name, exp_params, to_monitor="val_r2", monitor_
                                           mode=monitor_mode)
 
     ##### SETUP TRAINER #####
-    tb_logger = TensorBoardLogger(save_dir=organizer.logs_path, name=run_name)
+    tb_logger = TensorBoardLogger(save_dir=str(organizer.logs_path), name=run_name)
     trainer = Trainer(max_epochs=exp_params['hyperparams']['epochs'],
                       gpus=exp_params['hyperparams']['gpu_nums'],
                       callbacks=[checkpoint_callback],
@@ -80,8 +80,12 @@ def setup_model(backbone, exp_params):
     if model_type not in ["unfrozen_probe"]:
         for i, param in enumerate(backbone.parameters()):
             param.requires_grad_(False)
+    
+    # Load specific model type
     if model_type == "prompt_learner":
         net = SONCLIPFewShotNet(backbone, exp_params['hyperparams']['coop'])
+    elif model_type == "prompt_learner_multiclass":
+        net = CLIPMulticlassFewShotNet(backbone, exp_params['hyperparams']['coop'])        
     elif model_type in ["linear_probe", "unfrozen_probe"]:
         backbone = backbone.visual
         net = SONLinearProbe(backbone)
@@ -91,7 +95,16 @@ def setup_son_label_info():
     label_info = {}
     label_info['scenic'] = {}
     label_info['scenic']['ylims'] = [1, 10]
+    return 
+
+def setup_pp2_label_info():
+    label_info = {}    
+    for label in ["lively", "depressing" , "boring", "beautiful", "safety", "wealthy"]:    
+        label_info[label] = {}
+        label_info[label]['index'] = 0
+        label_info[label]['ylims'] = [0, 1]
     return label_info
+
 
 def get_sample_split_ids(exp_params, n_samples, to_int=False):
     all_split_ids = load_csv(exp_params['paths']['splits_root']+f'{n_samples}.csv')[0]

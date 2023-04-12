@@ -12,7 +12,7 @@ def load_pickle(pickle_file):
         matches = pickle.load(f)
     return matches
 
-embeddings_file = "data/embeddings.pkl"
+embeddings_file = "data/embeddings/ViT-L-14_son.pkl"
 embeddings = load_pickle(embeddings_file)
 
 km = KMeans(n_clusters=25)
@@ -57,7 +57,7 @@ all_bins = set(set(pts_with_bins['bin']))
 #     wr = csv.writer(out_file, quoting=csv.QUOTE_ALL)
 #     wr.writerow(list(val_samples['ID'].values))
 
-for num in [25, 50, 75, 100, 175, 250, 325, 400, 500]:
+for num in [(0.1*len(all_embeddings))]: #[25, 50, 75, 100, 175, 250, 325, 400, 500]:
     # Sample data from set
     n_samples = round(num/25)
     sampled_pts = pts_with_bins.groupby(["centroid_k"]).sample(n=n_samples, random_state=113, replace=False)

@@ -9,13 +9,15 @@ class ExperimentOrganizer():
         self.setup_folders()
 
     def setup_folders(self):
-        self.codebase_path = Path(self.root_path+'/custom_code')
+        self.codebase_path = Path(self.root_path+'/custom_code/')
         self.states_path = Path(self.root_path+'/outputs/states/')
-        self.logs_path = Path(self.root_path+'/outputs/logs')
+        self.logs_path = Path(self.root_path+'/outputs/logs/')
         
         self.codebase_path.mkdir(exist_ok=True, parents=True)
         self.states_path.mkdir(exist_ok=True, parents=True)
-        self.logs_path.mkdir(exist_ok=True, parents=True)
+        # Work around PyTorch Lightning badness
+        logs_save_path = Path(self.root_path+'/outputs/logs/default/')
+        logs_save_path.mkdir(exist_ok=True, parents=True)
 
     def store_environment(self):
         os.system(f"pip freeze > {self.root_path}/requirements.txt")
@@ -29,6 +31,3 @@ class ExperimentOrganizer():
             # os.system(f"cp --parents `find -wholename \*codebase/*{ext}` {self.codebase_path}/")
             os.system(f'cp --parents `find ./codebase/* -wholename "*{ext}"` {self.codebase_path}/')
         os.system(f"cp {sys.argv[0]} {self.codebase_path}/")
-
-
-        

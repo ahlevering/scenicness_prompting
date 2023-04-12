@@ -1,22 +1,17 @@
 from pathlib import Path
-import pickle
-import csv
-from sklearn.model_selection import KFold
 
 import pandas as pd
 import geopandas as gpd
 from sklearn import preprocessing
 from PIL import Image
 from PIL import ImageFile
-ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
 
-def load_pickle(pickle_file):
-    with open(pickle_file, 'rb') as f:
-        matches = pickle.load(f)
-    return matches
+from codebase.utils.file_utils import load_pickle
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 class SONData(Dataset):
     def __init__(self, exp_data, imgs_root, transforms, sample_ids=None, use_embeddings=False):
@@ -133,13 +128,13 @@ class SoNDataContainer():
 #         return sample
 
 class PP2RankingsData(Dataset):
-    def __init__(self, exp_data, imgs_root, transforms, sample_ids=None, embeddings=None):    
+    def __init__(self, exp_data, imgs_root, transforms, sample_ids=None, use_embeddings=None):    
         super().__init__()
         self.images_root = imgs_root
         self.transforms = transforms
         self.exp_data = exp_data
         self.sample_ids = sample_ids
-        self.embeddings = embeddings
+        self.use_embeddings = use_embeddings
 
         self.scores = ["lively", "depressing" , "boring", "beautiful", "safety", "wealthy"]
         self.winner_scores = {'left':1.0, 'equal':0.0, 'right':-1.0} # Target softmax confidence of left image
@@ -157,9 +152,9 @@ class PP2RankingsData(Dataset):
         point_id_right = str(datapoint['right_id'])
 
         # Load embeddings or images
-        if self.embeddings:
-            img_left = self.embeddings[point_id_left]
-            img_right = self.embeddings[point_id_right]
+        if self.use_embeddings:
+            img_left = self.exp_data.embeddings[point_id_left]
+            img_right = self.exp_data.embeddings[point_id_right]
         else:
             img_left = self.get_image(point_id_left)
             img_right = self.get_image(point_id_right) # = self.get_image(point_id_left)
@@ -238,10 +233,12 @@ class PP2Data(Dataset):
         return length    
 
 class PP2DataContainer():
-    def __init__(self, ratings_file):
-        labels = pd.read_csv(ratings_file)
-        # self.labels = gpd.GeoDataFrame(labels, geometry=gpd.GeoSeries.from_xy(labels['Lon'], labels['Lat']), crs=4326)
-        self.labels = pd.DataFrame(labels)
+    def __init__(self, ratings_file, embeddings):
+        self.labels = pd.read_csv(ratings_file)
+        if embeddings:
+            self.embeddings = load_pickle(embeddings)
+        else:
+            self.embeddings = None
 
     def normalize(self, cols):
         # https://stackoverflow.com/questions/26414913/normalize-columns-of-a-dataframe
@@ -267,6 +264,7 @@ class ClipDataLoader(pl.LightningDataModule):
             self.test_data = self.data_class(self.exp_data,
                                              imgs_root,                                      
                                              transforms['test'],
+                                             None,
                                              embeddings_policy['test'])
 
         if 'train' in splits:

@@ -96,10 +96,6 @@ class PromptLearnerWrapper(nn.Module):
             self.ctx_init = coop_hyperparams['ctx_init']
         device_num = torch.get_device(next(iter(clip_model.visual.parameters())))
 
-#         clip_imsize = clip_model.visual.input_resolution
-#         cfg_imsize = cfg.INPUT.SIZE[0]
-#         assert cfg_imsize == clip_imsize, f"cfg_imsize ({cfg_imsize}) must equal to clip_imsize ({clip_imsize})"
-
         if self.ctx_init:
             # use given words to initialize context vectors
             self.ctx_init = self.ctx_init.replace("_", " ")
@@ -273,17 +269,17 @@ class SONLinearProbe(nn.Module):
         return scenicness
 
 class CoOpCLIPLearner(nn.Module):
-    def __init__(self, clip_model, coop_hyperparams, use_embeddings=False):
+    def __init__(self, clip_model, coop_hyperparams):
         super().__init__()
         self.prompt_learner = PromptLearnerWrapper(clip_model, coop_hyperparams)
         self.tokenized_prompts = self.prompt_learner.tokenized_prompts
         self.text_encoder = TextEncoder(clip_model)
         self.logit_scale = clip_model.logit_scale
         self.dtype = clip_model.dtype
-        self.use_embeddings = use_embeddings
 
         # self.text_scaler = torch.ones([768], dtype=torch.float32)
         # self.text_scaler = nn.Parameter(self.text_scaler, requires_grad=True)
+        # text_features = (text_features * self.text_scaler).float()        
 
     def forward(self, image_features):
         prompts = self.prompt_learner()
@@ -291,7 +287,6 @@ class CoOpCLIPLearner(nn.Module):
         text_features = self.text_encoder(prompts, tokenized_prompts)
 
         image_features = image_features / image_features.norm(dim=-1, keepdim=True).float()
-        # text_features = (text_features * self.text_scaler).float()
         text_features = text_features / text_features.norm(dim=-1, keepdim=True).float()
 
         logit_scale = self.logit_scale.exp()
@@ -316,6 +311,32 @@ class SONCLIPFewShotNet(nn.Module):
         pos_likelihood = logits.softmax(dim=-1)[:,0]
         scenicness = (pos_likelihood * 9) + 1
         return scenicness
+
+class CLIPMulticlassFewShotNet(nn.Module):
+    def __init__(self, clip_model, coop_hyperparams):
+        super().__init__()
+        self.image_encoder = clip_model.visual
+        self.coop_learner = CoOpCLIPLearner(clip_model, coop_hyperparams)
+        self.use_embeddings = False
+
+    def forward(self, imgs, indices):
+        if not self.use_embeddings:        
+            img_feats_left = self.image_encoder(imgs['img_left'].half())
+            img_feats_right = self.image_encoder(imgs['img_right'].half())
+        else:
+            img_feats_left = imgs['img_left']
+            img_feats_right = imgs['img_right']
+        logits_left = self.coop_learner(img_feats_left)
+        logits_right = self.coop_learner(img_feats_right)
+
+        # Reshape to only class indices
+        indices_double = torch.stack([indices*2, (indices*2)+1], dim=1)
+        logits_left_for_class = logits_left[torch.arange(logits_left.shape[0]).unsqueeze(1), indices_double]
+        logits_right_for_class = logits_right[torch.arange(logits_right.shape[0]).unsqueeze(1), indices_double]
+        activations_left = logits_left_for_class.softmax(dim=1)[:,0] # Keep only positive class activations
+        activations_right = logits_right_for_class.softmax(dim=1)[:,0]
+        out = torch.cat([activations_left.unsqueeze(dim=1), activations_right.unsqueeze(dim=1)], dim=1)
+        return out
 
 class CLIPFewShotModule(pl.LightningModule):
     def __init__(self, scatter_dir, net, run_name, label_info, splits, tracker_class):
@@ -516,18 +537,18 @@ class CLIPFewShotModule(pl.LightningModule):
         return [optimizer], [scheduler1]
 
 
-class CLIPComparisonModule(CLIPFewShotModule):
-    def __init__(self, scatter_dir, net, run_name, label_info, splits, tracker_class):
-        super().__init__(scatter_dir, net, run_name, label_info, splits, tracker_class)
+# class CLIPComparisonModule(CLIPFewShotModule):
+#     def __init__(self, scatter_dir, net, run_name, label_info, splits, tracker_class):
+#         super().__init__(scatter_dir, net, run_name, label_info, splits, tracker_class)
 
-### General iteration functions ###
-    def forward(self, x):
-        x = self.net(x)
-        return x
+# ### General iteration functions ###
+#     def forward(self, x):
+#         x = self.net(x)
+#         return x
 
 class CLIPComparisonModule(CLIPFewShotModule):
-    def __init__(self, scatter_dir, net, run_name, label_info, splits, tracker_class):
-        super().__init__(scatter_dir, net, run_name, label_info, splits, tracker_class)
+    def __init__(self, scatter_dir, net, run_name, label_info, embeddings_policy, splits, tracker_class):
+        super().__init__(scatter_dir, net, run_name, label_info, embeddings_policy, splits, tracker_class)
 
 ### General iteration functions ###
     def forward(self, x):
@@ -535,15 +556,12 @@ class CLIPComparisonModule(CLIPFewShotModule):
         return x
 
     def iteration_forward(self, batch, tracker, split):                
-        preds = self.net(batch['img'], batch['cat_index'])# int(batch['cat_index']))
-        # loss = F.mse_loss(preds.double().squeeze(), batch['cat_score'].squeeze().double())
+        preds = self.net(batch['img'], batch['cat_index'])
         
         eq_batch_indices = (batch['cat_score'] == 0).nonzero(as_tuple=True)[0]
         # Calculate equal rankings
         if len(eq_batch_indices) > 0:
             eq_loss = (preds[:, 0] - preds[:, 1])[eq_batch_indices].abs().mean()
-        # eq_gt = batch['cat_score'][eq_batch_indices]
-        # eq_loss = (eq_preds[0] - eq_preds[1]).abs()
         else:
             eq_loss = 0
 

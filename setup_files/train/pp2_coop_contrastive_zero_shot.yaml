@@ -1,0 +1,50 @@
+descriptions:
+  name: "coop_contrastive_ground"
+  exp_family: "pp2_zero_shot"
+  model_type: "prompt_learner_multiclass"  
+  id_col: 'ID'
+  splits:
+    - "all"
+  debug: False
+
+paths:
+  labels_file:          "data/votes.csv" # "data/photo_df_scores.csv"
+  images_root:          "../../../data/datasets/PlacePulse2/final_photo_dataset/"
+  splits_root:          "data/splits_pp2/"
+  embeddings_file:      "data/embeddings/ViT-L-14_pp2.pkl"
+  debug:
+    debug_labels_file:      "data/son_debug_500.geojson"
+    debug_embeds_file:      "data/embeddings/ViT-L-14_son_debug_500.pkl"
+
+hyperparams:
+  use_precalc_embeddings: # Use precomputed image embeddings or images (with transformations)
+    test: True 
+  batch_size: 128
+  workers: 8
+  gpu_nums:
+    - 0
+  coop:
+    classes:
+      - "lively"        # Lively
+      - "lifeless"
+      - "depressing"    # Depressing
+      - "cheerful"
+      - "boring"        # boring
+      - "exciting"
+      - "beautiful"     # Beautiful
+      - "ugly"
+      - "safe"          # Safety
+      - "unsafe"
+      - "wealthy"       # wealthy
+      - "improverished"
+
+    class_pos: "end"
+    m_words: 16
+    n_shots: 1
+    ctx_init: "A photo of an area that is extremely"
+
+    class_context: False
+  optim:
+    lr:
+      - 0.0025
+    decay: 0
