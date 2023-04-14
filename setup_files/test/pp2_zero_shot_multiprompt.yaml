@@ -1,0 +1,76 @@
+descriptions:
+  name: "coop_contrastive_ground"
+  exp_family: "pp2_zero_shot"
+  model_type: "multiprompt"  
+  id_col: 'ID'
+  splits:
+    - "all"
+  debug: False
+
+paths:
+  labels_file:          "data/votes.csv" # "data/photo_df_scores.csv"
+  images_root:          "../../../data/datasets/PlacePulse2/final_photo_dataset/"
+  splits_root:          "data/splits_pp2/"
+  embeddings_file:      "data/embeddings/ViT-L-14_pp2.pkl"
+  debug:
+    debug_labels_file:      "data/son_debug_500.geojson"
+    debug_embeds_file:      "data/embeddings/ViT-L-14_son_debug_500.pkl"
+
+hyperparams:
+  use_precalc_embeddings: # Use precomputed image embeddings or images (with transformations)
+    test: True 
+  batch_size: 128
+  workers: 8
+  gpu_nums:
+    - 0
+  prompts:
+    "A photo of a park with families playing and having picnics.": 1.0
+    "A photo of a street lined with colorful flowers and quaint shops.": 1.0
+    "A photo of a neighborhood with beautiful, well-kept homes.": 1.0
+    "A photo of a bustling street with people enjoying food and drinks at outdoor cafes.": 1.0
+    "A photo of a beach with crystal clear water and white sand.": 1.0
+    "A photo of a park with well-maintained paths and benches for relaxation.": 1.0
+    "A photo of a neighborhood with friendly neighbors who frequently gather for events.": 1.0
+    "A photo of a well-lit street with beautiful architecture and greenery.": 1.0
+    "A photo of a quiet residential street with children playing outside.": 1.0
+    "A photo of a vibrant city square with street performers and art installations.": 1.0
+    "A photo of a street littered with trash and graffiti.": -1.0
+    "A photo of a neighborhood with dilapidated and run-down homes.": -1.0
+    "A photo of a street with abandoned buildings and broken sidewalks.": -1.0
+    "A photo of a deserted park with overgrown grass and broken equipment.": -1.0
+    "A photo of a neighborhood with closed and boarded up shops.": -1.0
+    "A photo of a street with no pedestrian activity and high levels of pollution.": -1.0
+    "A photo of a neighborhood with a high crime rate and visible drug use.": -1.0
+    "A photo of a rundown apartment complex with garbage strewn throughout.": -1.0
+    "A photo of a deserted street with no signs of life or activity.": -1.0
+    "A photo of a dark and unlit alleyway with visible signs of danger.": -1.0
+    "A photo of a chaotic and overcrowded street with no visible organization.": -1.0
+    "A photo of a neighborhood with loud and disruptive neighbors.": -1.0
+    "A photo of a street with visible signs of poverty and homelessness.": -1.0
+    "A photo of a park with broken benches and garbage scattered throughout.": -1.0
+    "A photo of a neighborhood with visible signs of neglect and disrepair.": -1.0
+    "a photo of a vibrant and bustling street with colorful storefronts": 1.0
+    "a photo of a peaceful and well-maintained residential area": 1.0
+    "a photo of a charming and lively town square with street performers": 1.0
+    "a photo of a quiet and scenic park with lush greenery and walking paths": 1.0
+    "a photo of a bustling and eclectic street market with vendors selling exotic goods": 1.0
+    "a photo of a friendly and welcoming community center with diverse activities": 1.0
+    "a photo of a picturesque and historic district with unique architecture": 1.0
+    "a photo of a clean and organized suburban neighborhood with well-manicured lawns": 1.0
+    "a photo of a peaceful and serene beachfront with crystal-clear water": 1.0
+    "a photo of a lively and energetic downtown area with skyscrapers and nightlife": 1.0
+    "a photo of a desolate and abandoned street with graffiti-covered buildings": -1.0
+    "a photo of a rundown and dilapidated housing project with broken windows": -1.0
+    "a photo of a crime-ridden and unsafe alley with litter and debris": -1.0
+    "a photo of a polluted and smog-filled industrial area with factories": -1.0
+    "a photo of a noisy and congested highway with heavy traffic": -1.0
+    "a photo of a deserted and creepy ghost town with abandoned buildings": -1.0
+    "a photo of a slum-like and impoverished shantytown with makeshift shelters": -1.0
+    "a photo of a chaotic and overcrowded bus terminal with long lines": -1.0
+    "a photo of a seedy and dangerous red-light district with seedy establishments": -1.0
+    "a photo of a bleak and depressing concrete jungle with no greenery": -1.0
+    "a photo of a polluted and trash-strewn river with industrial waste": -1.0
+    "a photo of a decaying and vandalized abandoned building with broken glass": -1.0
+    "a photo of a rundown and neglected trailer park with makeshift homes": -1.0
+    "a photo of a desolate and barren wasteland with no signs of life": -1.0
+    "a photo of a run-down and depressing nursing home with no activities for residents": -1.0

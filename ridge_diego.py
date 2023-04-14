@@ -34,6 +34,13 @@ setup_file = "setup_files/test/son_zero_shot.yaml"
 with open(setup_file) as file:
     exp_params = yaml.full_load(file)
 
+import pickle
+def load_pickle(pickle_file):
+    with open(pickle_file, 'rb') as f:
+        matches = pickle.load(f)
+    return matches
+load_pickle(exp_params['paths']['embeddings_root']+f"ViT-L-14_son.pkl")
+
 run_name = exp_params['descriptions']['name']
 run_family = exp_params['descriptions']['exp_family']
 
@@ -69,7 +76,7 @@ split_ids = {'train': all_split_ids, 'test': test_ids}
 data_module.setup_data_classes( data_container,
                                 exp_params['paths']['images_root'],
                                 split_ids=split_ids,
-                                embeddings=exp_params['paths']['embeddings_root']+f"ViT-L-14.pkl", # exp_params['paths']['embeddings'],
+                                embeddings=exp_params['paths']['embeddings_root']+f"ViT-L-14_son.pkl", # exp_params['paths']['embeddings'],
                                 transforms=transforms,
                                 id_col=exp_params['descriptions']['id_col'],
                                 splits=exp_params['descriptions']['splits']

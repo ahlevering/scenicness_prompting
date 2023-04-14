@@ -209,33 +209,48 @@ class PromptLearnerWrapper(nn.Module):
 
         return prompts
 
-# class ContrastiveManyPromptsNet(nn.Module):
-#     def __init__(self, model, prompts, use_embeddings=False):
-#         super().__init__()
-#         self.model = model
-#         self.prompts = prompts
-#         # self.prompt_values = prompt_values
-#         self.use_embeddings=use_embeddings
+class CLIPMultiPromptNet(nn.Module):
+    def __init__(self, model, tokenized_prompts, prompt_values, use_embeddings=False, son_rescale=False):
+        super().__init__()
+        self.model = model
+        self.encoded_prompts = self.model.encode_text(tokenized_prompts)
+        self.prompt_values = prompt_values
+        self.use_embeddings=use_embeddings
+        self.son_rescale = son_rescale
 
-#     def simple_contrastive(self, img_feats, txt_feats):
-#         img_feats /= img_feats.norm(dim=-1, keepdim=True)
-#         txt_feats /= txt_feats.norm(dim=-1, keepdim=True)
-#         # txt_feats = txt_feats.T.repeat(1, 768, 61)
-#         activations = (100.0 * img_feats @ txt_feats.T) #.softmax(dim=-1)
-#         # activations = img_feats @ txt_feats.T
-#         # activations = img_feats * txt_feats.T.repeat(1, 768, 61)
-#         # output = activations * self.prompt_values.unsqueeze(0)
-#         # 15 text-to-image similarities
-#         return activations # output.mean(-1)        
+    def simple_contrastive(self, img_feats, txt_feats):
+        img_feats /= img_feats.norm(dim=-1, keepdim=True)
+        txt_feats /= txt_feats.norm(dim=-1, keepdim=True)
+        activations = (100.0 * img_feats @ txt_feats.T)
+        if self.son_rescale:
+            activations = activations.softmax(dim=-1)
+        output = activations * self.prompt_values.unsqueeze(0)
+        return output.mean(-1)
 
-#     def forward(self, image):
-#         if self.use_embeddings:
-#             img_feats = image
-#         else:
-#             img_feats = self.model.visual(image.half())
-#         txt_feats = self.model.encode_text(self.prompts)        
-#         output = self.simple_contrastive(img_feats, txt_feats)
-#         return output
+    def get_image_score(self, img, txt_feats):
+        if self.use_embeddings:
+            img_feats = img
+        else:
+            img_feats = self.model.visual(img)
+        txt_feats = self.encoded_prompts
+        scoring = self.simple_contrastive(img_feats, txt_feats)
+        return scoring.unsqueeze(-1)
+
+    def forward(self, imgs, indices=None):
+        txt_feats = self.encoded_prompts            
+        if type(imgs) == dict:
+            img1_scores = self.get_image_score(imgs['img_left'], txt_feats).repeat([1,6])
+            img2_scores = self.get_image_score(imgs['img_right'], txt_feats).repeat([1,6])
+            out = torch.cat([img1_scores.unsqueeze(dim=1), img2_scores.unsqueeze(dim=1)], dim=1)
+        else:
+            out = self.get_image_score(imgs, txt_feats)
+            # out = out.mean()
+            if self.son_rescale:
+                out = (out * 9) + 1
+
+        if indices is not None:
+            out = out[range(out.shape[0]),:, indices]#.flatten()
+        return out
 
 class SONLinearProbe(nn.Module):
     def __init__(self, net, use_embeddings=False):

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import clip
+import torch
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers.tensorboard import TensorBoardLogger
@@ -8,7 +9,7 @@ from pytorch_lightning.loggers.tensorboard import TensorBoardLogger
 from codebase.experiment_tracking.save_metadata import ExperimentOrganizer
 from codebase.experiment_tracking import process_yaml
 from codebase.pt_funcs.dataloaders import ClipDataLoader
-from codebase.pt_funcs.models_few_shot import SONCLIPFewShotNet, CLIPMulticlassFewShotNet, SONLinearProbe
+from codebase.pt_funcs.models_few_shot import SONCLIPFewShotNet, CLIPMulticlassFewShotNet, SONLinearProbe, CLIPMultiPromptNet
 
 from codebase.utils.file_utils import load_csv, make_crossval_splits
 
@@ -84,8 +85,13 @@ def setup_model(backbone, exp_params):
     # Load specific model type
     if model_type == "prompt_learner":
         net = SONCLIPFewShotNet(backbone, exp_params['hyperparams']['coop'])
-    elif model_type == "prompt_learner_multiclass":
+    elif model_type in ["prompt_learner_multiclass"]:
         net = CLIPMulticlassFewShotNet(backbone, exp_params['hyperparams']['coop'])        
+    elif model_type in ["multiprompt"]:
+        tokenized_prompts = torch.cat([clip.tokenize(p) for p in list(exp_params['hyperparams']['prompts'].keys())]).to(exp_params['hyperparams']['gpu_nums'][0])
+        prompt_values = torch.tensor(list(exp_params['hyperparams']['prompts'].values())).to(exp_params['hyperparams']['gpu_nums'][0])
+        son_rescale = 'son' in exp_params['descriptions']['exp_family']
+        net = CLIPMultiPromptNet(backbone, tokenized_prompts, prompt_values, son_rescale=son_rescale)
     elif model_type in ["linear_probe", "unfrozen_probe"]:
         backbone = backbone.visual
         net = SONLinearProbe(backbone)
@@ -95,7 +101,7 @@ def setup_son_label_info():
     label_info = {}
     label_info['scenic'] = {}
     label_info['scenic']['ylims'] = [1, 10]
-    return 
+    return label_info
 
 def setup_pp2_label_info():
     label_info = {}    

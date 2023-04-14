@@ -19,7 +19,9 @@ np.set_printoptions(suppress=True)
 torch.set_printoptions(sci_mode=False)
 
 ##### LOAD SET-UP FILE #####
-setup_file = "setup_files/train/son_coop_contrastive_zero_shot.yaml"
+# setup_file = "setup_files/test/son_zero_shot_multiprompt.yaml"
+setup_file = "setup_files/test/son_zero_shot_multiprompt.yaml"
+
 with open(setup_file) as file:
     exp_params = yaml.full_load(file)
     

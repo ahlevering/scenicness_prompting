@@ -1,0 +1,42 @@
+descriptions:
+  name: "crafted_prompts"
+  exp_family: "son_zero_shot"
+  model_type: "multiprompt"  
+  id_col: 'ID'
+  splits:
+    - "all"
+  debug: False
+
+paths:
+  labels_file:          "data/son_pts_with_bins.geojson"
+  splits_root:          "data/splits_son/"
+  images_root:          "../../../data/datasets/SoN/images/"
+  embeddings_file:      "data/embeddings/ViT-L-14_son.pkl"
+  debug:
+    debug_labels_file:      "data/son_debug_500.geojson"
+    debug_embeds_file:      "data/embeddings/ViT-L-14_son_debug_500.pkl"
+
+hyperparams:
+  use_precalc_embeddings: # Use precomputed image embeddings or images (with transformations)
+    test: True 
+  batch_size: 128
+  workers: 8
+  gpu_nums:
+    - 0
+  prompts:
+    "A photo of a natural area.": 6
+    "A photo of snow capped mountains": 10
+    "A photo of a scenic lake.": 9
+    "A photo of a scenic and snowy wonderland": 10
+    "A photo of an idilic landscape": 9
+    "A carpet of flowers in the forest": 9
+    "A photo of a field.": 6
+    "A photo of an unremarkable rural area.": 5
+    "A photo of an urban area.": 4
+    "A photo of a highway.": 1
+    "A photo of a construction area.": 1
+    "A photo of vehicles.": 1
+    "Man made metal structures.": 1
+    "An urban park": 5
+    "Agricultural machinery": 2
+    "A road between fields": 3
