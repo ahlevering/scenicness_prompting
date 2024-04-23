@@ -1,0 +1,181 @@
+descriptions:
+  name: "early_ensembling_no_prefix"
+  exp_family: "son_zero_shot"
+  model_type: "multiprompt"  
+  id_col: 'ID'
+  splits:
+    - "all"
+  debug: False
+
+paths:
+  labels_file:          "data/son_pts_with_bins.geojson"
+  splits_root:          "data/splits_son/"
+  images_root:          "../../../data/datasets/SoN/images/"
+  embeddings_file:      "data/embeddings/ViT-L-14_son.pkl"
+  debug:
+    debug_labels_file:      "data/son_debug_500.geojson"
+    debug_embeds_file:      "data/embeddings/ViT-L-14_son_debug_500.pkl"
+
+hyperparams:
+  use_precalc_embeddings: # Use precomputed image embeddings or images (with transformations)
+    test: True 
+  batch_size: 32
+  workers: 2
+  gpu_nums:
+    - 0
+  prompts:
+    "quiet path in a forest": 8
+    "benches and street lamps by the river": 6
+    "agricultural pasture": 4
+    "historic ruin": 6
+    "highland cliffs": 6
+    "rocky outcrops": 5
+    "a busy dense urban area": 2
+    "rural village with typical red brick houses": 6
+    "a lake in a rugged landscape and a castle": 10
+    "a rocky cliff over the sea with a lighthouse": 8
+    "suburban area with regular rows of terraced houses": 5
+    "a meadow under a cloudy weather": 8
+    "cliffs with green meadow by the ocean shore": 10
+    "a city oldtown center with paved streets": 7
+    "a modern neighborhood with skyscrapers": 2
+    "large medieval buildings such as castles": 9
+    "urban landscape": 1
+    "residential landscape": 1
+    "sea shore": 8
+    "a castle in the mist": 5
+    "Scottish highlands": 8
+    "cloudy and rainy landscape": 3
+    "green hills": 8
+    "a street with rows of identical worker houses on both sides": 3
+    "a suburban neighbourhood with gardens and trees": 6
+    "a gas station": 1
+    "a large historical building in a city center": 7
+    "scattered houses in a hilly countryside area": 9
+    "a cliff over the sea": 10    
+    "a narrow road inside a forest": 7
+    "a pedestrian street with luxury stores": 6
+    "a village with small, ancient houses and bright green grass": 10
+    "a field with grazing sheep": 8
+    "a business center with modern skyscrapers": 5
+    "a commercial harbour with thousands of piled containers": 4
+    "a curvy road with hedges on both sides": 6
+    "hilly outlooks over irregular square patches of agricultural land": 8
+    "pastures with grazing sheep, even under gray skies": 9
+    "a picknick table alongside a road with agriculture besides": 7
+    "a harbour with lots of infrastructure": 1
+    "a seaside with average beach but dolphins swimming in the distance": 6
+    "a park in London with lots of people enjoying their weekend": 7
+    "suburbs of London with big villas and wild gardens with beautiful trees": 7
+    "long straight roads with low industrial buildings on both sides": 1
+    "meadows with small yellow flowers crossed by low barbed wire fences and electricity poles": 6
+    "green hills and farmland": 8
+    "a rocky landscape with grass in Scotland": 9
+    "a road with hedges alongside": 8
+    "a harbour": 2
+    "houses in Glasgow": 6
+    "green, rolling hillsides with trees and bushes": 7
+    "narrow, U-shaped, winding roads lined with bushes": 9
+    "a lake in the highlands surrounded by mostly green mountains": 10
+    "areas of grassland and agricultural fields (farmland), bordered or separated by low stone walls": 8
+    "steep and rugged cliffs on the coast": 9
+    "medieval castles/fortresses at a lake, along a river, or on a mountain top": 8
+    "dark, mostly brown-colored and monotonous rows of old houses in city suburbs": 4
+    "old factories/industrial lots (faded glory)": 3
+    "big city harbours, which are often messy and dirty": 1
+    "huge swings/oscillators located in an amusement park of a dense urban area": 6
+    "seagulls flying around and sitting on stones near the shoreline": 8
+    "a hut located within a dense forest": 7
+    "a crowded downtown urban center": 4
+    "snowy mountains with a river flowing out of it": 8
+    "a huge plain area with fields and open sky": 8
+    "an industrial area with a lot of garbage and plumes running off it": 1
+    "a grassland with beautiful trees and animals": 8
+    "a tennis ground": 7
+    "a large bridge over the river": 10
+    "a grand 5-star hotel on the beach": 9
+    "Westminster Bridge": 8
+    "a waterfall through a mountain forest": 10
+    "the rolling green hills of the English countryside dotted with sheep": 9
+    "the rugged coastline of Cornwall with its cliffs and beaches": 8
+    "the bustling streets and historic buildings of London": 7
+    "the mystical and ancient stone circle of Stonehenge": 8
+    "the serene beauty of the Lake District with its mountains and lakes": 10
+    "the historic and charming town of Bath with its Georgian architecture": 9
+    "the urban landscape of Manchester with its vibrant street art": 6
+    "the majestic Scottish Highlands with its rugged terrain and castles": 10
+    "the idyllic and quaint villages of the Cotswolds": 9
+    "the modern and eclectic cityscape of Glasgow": 7
+    "the dramatic and stunning Giant's Causeway in Northern Ireland": 10
+    "a lake in the highlands surrounded by hills": 7
+    "rolling hills, some trees, low hedgerows, a village with a church tower in the distance": 10
+    "a coastal village with a small harbour": 10
+    "an industrial city with newly made parks and coffee bars": 8
+    "cliffs at the shoreline": 7
+    "a castle on top of a hill": 5
+    "a small village with old charming farm houses": 8
+    "a highway along fields": 1
+    "a residential area filled with concrete buildings": 2
+    "dunes with small vegetation": 5
+    "sandy beaches": 7
+    "a snowy and icy river running through a forest": 8
+    "suburbs of big cities": 2
+    "an industrial lot": 1
+    "a sunset on the sea": 9
+    "a forest at sunrise": 8
+    "cliffs at sea level": 8
+    "highways": 1
+    "a small village in the highlands": 6
+    "a flock of sheep on a hill": 8
+    "a fish and chips stall near the coast": 7
+    "an ancient graveyard near a church in the countryside": 8
+    "a dirt road through a meadow": 6
+    "a dirt road through a grass field": 6
+    "a Victorian building along an asphalt road": 5
+    "an urban Victorian building": 5
+    "a rugged cliff facing a sea": 8
+    "a high cliff near an ocean": 8
+    "a grassy cliff near a rough sea": 8
+    "a wide motorway": 1
+    "a busy highway": 1
+    "a freeway with heavy traffic": 1
+    "a grass field with an old wall": 7
+    "a meadow with a stone wall": 7
+    "a lake with misty mountains": 10
+    "a loch with mountains in a forest": 10
+    "a moor with low vegetation in the mountains": 9
+    "a bog with grass surrounded by a mountain": 9 
+    # # Personal map
+    # "a photo of curvy road with hedges on both sides": 6
+    # "a photo of hilly outlooks over irregular square patches of agricultural land": 8
+    # "a photo of pastures with grazing sheep, even under gray skies": 9
+    # "a photo of picknick table alongside a road with agriculture besides": 7
+    # "a photo of harbour with lots of infrastructure": 1
+    # "a photo of seaside with average beach but dolphins swimming in the distance": 6
+    # "a photo of park in London with lots of people enjoying their weekend": 7
+    # "a photo of suburbs of London with big villas and wild gardens with beautiful trees": 7
+    # "a photo of long straight roads with low industrial buildings on both sides": 1
+    # "a photo of meadows with small yellow flowers crossed by low barbed wire fences and electricity poles": 6
+  
+    # OWN ATTEMPT - BEST PROMPTS
+    # "A photo of a natural forest.": 6
+    # "A photo of an agricultural field": 3
+    # "A photo of a pristine lake.": 9
+    # "A photo of a scenic and snowy wonderland": 10
+    # "A photo of barren and rocky terrain.": 9
+    # "A photo of rolling countryside hills": 5
+    # "A photo of a populated urban area": 1
+    # "A photo of pasture lands.": 4
+    # "A photo of an suburban area.": 2
+    # "A photo of a residential area in a countryside village.": 3
+    # "A photo of old and historic buildings": 6
+    # "A photo of a highway.": 1
+    # "A photo of a natural sandy beach.": 8
+    # "A photo of a cliff by the coast.": 6
+    # "A photo of a cute village by the sea.": 6
+    # "A photo of a port with manmade structures.": 2
+    # "A photo of a construction area.": 1
+    # "A photo of vehicles.": 1
+    # "A photo of manmade structures in a city": 1
+    # "A photo of an urban park": 5
+    # "A photo of road between country fields": 3    

@@ -5,6 +5,63 @@ from torch import nn
 import pytorch_lightning as pl
 from codebase.experiment_tracking.run_tracker import VarTrackerCLIPExperiments
 
+class MultiClassPrompter(nn.Module):
+    def __init__(self, model, prompts, use_embeddings=False):
+        super().__init__()
+        self.use_embeddings = use_embeddings
+        self.model = model
+        device_num = torch.get_device(next(iter(model.visual.parameters())))        
+        tokenized_prompts = clip.tokenize(prompts).to(device_num)
+        self.txt_feats = self.model.encode_text(tokenized_prompts)
+        self.txt_feats /= self.txt_feats.norm(dim=-1, keepdim=True)
+
+    def get_prompt_activations(self, img_feats):
+        img_feats /= img_feats.norm(dim=-1, keepdim=True)
+        activations = (100.0 * img_feats @ self.txt_feats.T)
+        softmax_scores = activations.softmax(dim=1)
+        return softmax_scores
+
+    def forward(self, img):
+        if self.use_embeddings:
+            img_feats = img
+        else:
+            img_feats = self.model.visual(img)
+        scoring = self.get_prompt_activations(img_feats)
+        return scoring
+
+class MultiClassContrasts(nn.Module):
+    def __init__(self, model, negative_prompts, positive_prompts, use_embeddings=False):
+        super().__init__()
+        self.use_embeddings = use_embeddings
+        self.model = model
+        device_num = torch.get_device(next(iter(model.visual.parameters())))        
+        # Negative prompts
+        neg_tokenized_prompts = clip.tokenize(negative_prompts).to(device_num)
+        self.neg_txt_feats = self.model.encode_text(neg_tokenized_prompts)
+        self.neg_txt_feats /= self.neg_txt_feats.norm(dim=-1, keepdim=True)
+        # Positive prompts
+        pos_tokenized_prompts = clip.tokenize(positive_prompts).to(device_num)
+        self.pos_txt_feats = self.model.encode_text(pos_tokenized_prompts)
+        self.pos_txt_feats /= self.pos_txt_feats.norm(dim=-1, keepdim=True)   
+
+    def get_prompt_activations(self, img_feats):
+        img_feats /= img_feats.norm(dim=-1, keepdim=True)
+        pos_activations = (100.0 * img_feats @ self.pos_txt_feats.T)
+        neg_activations = (100.0 * img_feats @ self.neg_txt_feats.T)
+
+        # Flatten the tensor back to its original shape
+        softmax_scores = nn.functional.softmax(torch.stack((pos_activations, neg_activations), dim=2), dim=2)
+        # pos_activations = softmax_scores[:, :, 0]
+        return pos_activations
+
+    def forward(self, img):
+        if self.use_embeddings:
+            img_feats = img
+        else:
+            img_feats = self.model.visual(img)
+        scoring = self.get_prompt_activations(img_feats)
+        return scoring        
+
 class PP2ManyPrompts(nn.Module):
     def __init__(self, model, prompts, prompt_values, use_embeddings=False, son_rescale=False):
         super().__init__()
@@ -21,23 +78,6 @@ class PP2ManyPrompts(nn.Module):
         output = activations * self.prompt_values.unsqueeze(0)
         return output.mean(-1)
 
-    # def simple_contrastive(self, img_feats, txt_feats):
-    #     img_feats /= img_feats.norm(dim=-1, keepdim=True)
-    #     txt_feats /= txt_feats.norm(dim=-1, keepdim=True)
-
-    #     activations = (100.0 * img_feats @ txt_feats.T)# .softmax(dim=-1)
-    #     activations = activations.softmax(dim=-1)
-
-    #     ## Make contrast
-    #     neg_value_indices = (self.prompt_values == -1).nonzero(as_tuple=True)[0]
-    #     pos_value_indices = (self.prompt_values == 1).nonzero(as_tuple=True)[0]
-
-    #     pos_activations = torch.index_select(activations, 1, pos_value_indices).mean(-1)
-    #     neg_activations = torch.index_select(activations, 1, neg_value_indices).mean(-1)
-
-    #     difference = pos_activations - neg_activations
-    #     return difference
-
     def get_image_score(self, img, txt_feats):
         if self.use_embeddings:
             img_feats = img
@@ -45,27 +85,30 @@ class PP2ManyPrompts(nn.Module):
             img_feats = self.model.visual(img)
         txt_feats = self.model.encode_text(self.prompts)
         scoring = self.simple_contrastive(img_feats, txt_feats)
-        return scoring
+        return scoring.unsqueeze(-1)
 
-    def assign_classification(self, margin):
-        margin[margin > 0.65] = margin[margin > 0.65].ceil()
-        margin[margin < 0.35] = margin[margin < 0.35].floor()
-        margin[torch.logical_and(margin >= 0.35, margin <= 0.65)] = 0.5
-        return margin
-
-    def forward(self, imgs):
+    def forward(self, imgs, indices):
         txt_feats = self.model.encode_text(self.prompts)                
         if type(imgs) == dict:# > 1:
-            img1_score = self.get_image_score(imgs['img_left'], txt_feats)
-            img2_score = self.get_image_score(imgs['img_right'], txt_feats)
-            scores = torch.stack([img1_score, img2_score])
-            margin = scores.softmax(dim=0)[0] # Make comparison relative to first image
-            cl = self.assign_classification(margin)            
+            img1_scores = self.get_image_score(imgs['img_left'], txt_feats).repeat([1,6])
+            img2_scores = self.get_image_score(imgs['img_right'], txt_feats).repeat([1,6])
+            out = torch.cat([img1_scores.unsqueeze(dim=1), img2_scores.unsqueeze(dim=1)], dim=1)
+            # scores = torch.stack([img1_score, img2_score])
+            # margin = scores.softmax(dim=0)[0] # Make comparison relative to first image
+            # cl = self.assign_classification(margin)            
         else:
             cl = self.get_image_score(imgs, txt_feats)
             # if self.son_rescale:
             #     cl = (cl * 9) + 1
-        return cl
+
+        if indices is not None:
+            # cls = cls[range(cls.shape[0]), indices].flatten()
+            out = out[range(out.shape[0]),:, indices]#.flatten()
+            # img1_scores = img1_scores[range(img1_scores.shape[0]),:, indices].flatten()
+            # img2_scores = img2_scores[range(img2_scores.shape[0]),:, indices].flatten()
+
+        #  cls = self.apply_threshold(cls)
+        return out
 
 class ContrastiveManyPromptsNet(nn.Module):
     def __init__(self, clip_model, prompts, prompt_values):

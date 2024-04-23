@@ -1,0 +1,32 @@
+descriptions:
+  name: "coop_contrastive_ground"
+  exp_family: "son_few_shot"
+  id_col: 'ID'
+  splits:
+    - "all"
+  debug: False
+
+paths:
+  labels_file:          "data/son_pts_with_bins.geojson"
+  splits_root:          "data/splits_son/"
+  images_root:          "data/son/SoN/images/"
+  embeddings_file:      "data/embeddings/embeds_siglip.pkl"
+  debug:
+    debug_labels_file:      "data/son_debug_500.geojson"
+    debug_embeds_file:      "data/embeddings/ViT-L-14_son_debug_500.pkl"
+
+hyperparams:
+  use_precalc_embeddings: # Use precomputed image embeddings or images (with transformations)
+    all: True
+  epochs: 25
+  k_folds: 5
+  check_val_every_n: 1
+  batch_size: 2048
+  workers: 20
+  gpu_nums:
+    - 0
+
+  optim:
+    lr:
+      - 0.0025
+    decay: 0  

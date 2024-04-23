@@ -1,6 +1,5 @@
 from pathlib import Path
-
-import clip
+import torch
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers.tensorboard import TensorBoardLogger
@@ -8,9 +7,21 @@ from pytorch_lightning.loggers.tensorboard import TensorBoardLogger
 from codebase.experiment_tracking.save_metadata import ExperimentOrganizer
 from codebase.experiment_tracking import process_yaml
 from codebase.pt_funcs.dataloaders import ClipDataLoader
-from codebase.pt_funcs.models_few_shot import SONCLIPFewShotNet, SONBaseline
+from codebase.pt_funcs.models_few_shot import CLIPMulticlassFewShotNet, SONLinearProbe, CLIPMultiPromptNet
+from codebase.pt_funcs.models_zero_shot import MultiClassPrompter, MultiClassContrasts
+from codebase.pt_funcs.models_baseline import ConvNext_regression
 
 from codebase.utils.file_utils import load_csv, make_crossval_splits
+
+def get_label_embeds_paths(exp_params):
+    if exp_params['descriptions']['debug']:
+        embeddings = exp_params['paths']['debug']
+        labels = exp_params['paths']['debug']['debug_labels_file']
+        embeddings = exp_params['paths']['debug']['debug_embeds_file']
+    else:
+        labels = exp_params['paths']['labels_file']
+        embeddings = exp_params['paths']['embeddings_file']
+    return labels, embeddings
 
 def setup_split_transforms(exp_params):
     transforms = {}
@@ -27,11 +38,11 @@ def organize_experiment_info(run_path, setup_file):
 
 def setup_data_module(data_class, exp_params, data_container, transforms, split_ids=None, single_batch=False):
     if single_batch:
-        n_workers = 8
+        n_workers = 3
         batch_size = 1
     else:
-        n_workers = exp_params['n_workers']
-        n_workers = exp_params['batch_size']
+        n_workers = exp_params['hyperparams']['workers']
+        batch_size = exp_params['hyperparams']['batch_size']
     data_module = ClipDataLoader(n_workers, 
                                  batch_size,
                                  data_class=data_class)
@@ -39,10 +50,10 @@ def setup_data_module(data_class, exp_params, data_container, transforms, split_
     data_module.setup_data_classes(data_container,
                                    exp_params['paths']['images_root'],
                                    split_ids,
+                                   embeddings_policy=exp_params['hyperparams']['use_precalc_embeddings'],
                                    transforms=transforms,
-                                   id_col=exp_params['descriptions']['id_col'],
                                    splits=exp_params['descriptions']['splits'])
-    loader_emulator = next(iter(data_module.train_data)) # Check if loader can return a batch
+    # loader_emulator = next(iter(data_module.train_data)) # Test if loader can return a batch
     return data_module
 
 def setup_trainer(organizer, run_name, exp_params, to_monitor="val_r2", monitor_mode='max'):
@@ -53,7 +64,7 @@ def setup_trainer(organizer, run_name, exp_params, to_monitor="val_r2", monitor_
                                           mode=monitor_mode)
 
     ##### SETUP TRAINER #####
-    tb_logger = TensorBoardLogger(save_dir=organizer.logs_path, name=run_name)
+    tb_logger = TensorBoardLogger(save_dir=str(organizer.logs_path), name=run_name)
     trainer = Trainer(max_epochs=exp_params['hyperparams']['epochs'],
                       gpus=exp_params['hyperparams']['gpu_nums'],
                       callbacks=[checkpoint_callback],
@@ -61,24 +72,62 @@ def setup_trainer(organizer, run_name, exp_params, to_monitor="val_r2", monitor_
                       fast_dev_run=False)
     return trainer
 
-def setup_model(backbone, exp_params, model_type="learned_prompt_context", use_embeddings=True):
-    ##### SETUP MODEL #####
-    backbone, _ = clip.load(backbone)
+def setup_model(backbone, exp_params):
+    if "baseline"in exp_params['descriptions']['model_type']:
+        net = ConvNext_regression()
+        # for i, param in enumerate(net.basenet.parameters()):
+        #     param.requires_grad_(False)
+    else:
+        ##### SETUP MODEL #####
+        backbone = backbone
+        model_type = exp_params["descriptions"]["model_type"]
 
-    # Freeze feature extractors
-    if model_type in ["learned_prompt_context"]:
-        for i, param in enumerate(backbone.parameters()):
-            param.requires_grad_(False)
-    if model_type == "learned_prompt_context":
-        net = SONCLIPFewShotNet(backbone, exp_params['hyperparams']['coop'], use_embeddings=use_embeddings)
-    elif model_type == "probe":
-        net = SONCLIPFewShotNet(backbone, exp_params['hyperparams']['coop'], use_embeddings=use_embeddings)
+        # Freeze feature extractors
+        if model_type not in ["unfrozen_probe"]:
+            for i, param in enumerate(backbone.parameters()):
+                param.requires_grad_(False)
+        
+        # Load specific model type
+        if model_type == "prompt_learner":
+            net = SONCLIPFewShotNet(backbone, exp_params['hyperparams']['coop'])
+        elif model_type in ["prompt_learner_multiclass"]:
+            net = CLIPMulticlassFewShotNet(backbone, exp_params['hyperparams']['coop'])        
+        elif model_type in ["multiprompt"]:
+            tokenized_prompts = torch.cat([clip.tokenize(p) for p in list(exp_params['hyperparams']['prompts'].keys())]).to(exp_params['hyperparams']['gpu_nums'][0])
+            prompt_values = torch.tensor(list(exp_params['hyperparams']['prompts'].values())).to(exp_params['hyperparams']['gpu_nums'][0])
+            son_rescale = 'son' in exp_params['descriptions']['exp_family']
+            net = CLIPMultiPromptNet(backbone, tokenized_prompts, prompt_values, son_rescale=son_rescale)
+        elif model_type in ["linear_probe", "unfrozen_probe"]:
+            backbone = backbone.visual
+            net = SONLinearProbe(backbone)
+        elif model_type == "frozen_multiprompt": # Technical debt, can be in few-shot, solve differently?
+            # lc_rows = load_csv(exp_params['hyperparams']['lut_file'])
+            # lc_class_names = [x[-1] for x in lc_rows]
+            class_list = list(exp_params['hyperparams']['class_list'].values())
+            prompts = [f"{exp_params['hyperparams']['prompt']} {x}" for x in class_list]
+            net = MultiClassPrompter(backbone, prompts)
+        elif model_type == "contrastive_extractor":
+            prompt_contrasts = exp_params['hyperparams']['prompt_contrast']
+            prompts = exp_params['hyperparams']['prompts']
+            pos_prompts = [f"{prompt_contrasts[0]} {p}." for p in prompts]
+            neg_prompts = [f"{prompt_contrasts[1]} {p}." for p in prompts]
+            net = MultiClassContrasts(backbone, neg_prompts, pos_prompts)
     return net
 
-def setup_son_label_info():
-    label_info = {}
-    label_info['scenic'] = {}
-    label_info['scenic']['ylims'] = [1, 10]
+def setup_label_info(keys):
+    # More of a placeholder than anything, should be fixed
+    label_info = {}    
+    for key in keys:
+        label_info[key] = {}
+        label_info[key]['ylims'] = [1, 10]
+    return label_info
+
+def setup_pp2_label_info():
+    label_info = {}    
+    for label in ["lively", "depressing" , "boring", "beautiful", "safety", "wealthy"]:    
+        label_info[label] = {}
+        label_info[label]['index'] = 0
+        label_info[label]['ylims'] = [0, 1]
     return label_info
 
 def get_sample_split_ids(exp_params, n_samples, to_int=False):
@@ -101,11 +150,3 @@ def get_top_model(best_states_dir, min_epoch=0):
     top_model_metric = sorted([float(str(s).split("=")[-1].split(".ckpt")[0]) for s in converged_states])[-1] # Take best model
     top_model_path = [s for s in converged_states if str(top_model_metric) in str(s)][0]
     return top_model_path
-
-# def setup_architecture(backbone, freeze=False):
-#     model, _ = clip.load(architecture)      
-
-#     if freeze:
-#         for i, param in enumerate(model.parameters()):
-#             param.requires_grad_(False)
-#     net = SONCLIPFewShotNet(model, exp_params['hyperparams']['coop'], use_embeddings=True)

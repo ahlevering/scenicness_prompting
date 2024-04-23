@@ -1,0 +1,112 @@
+descriptions:
+  name: "prompt_subsets"
+  exp_family: "son_few_shot"
+  id_col: 'ID'
+  splits:
+    - "train"
+    - "val"
+    - "test"
+
+paths:
+  # labels_file:          "data/son_pts_with_bins.geojson" # "data/son_debug_500.geojson"
+  labels_file:          "data/son_pts_with_bins.geojson" # "data/son_debug_500.geojson"
+  splits_root:          "data/splits_son/"
+  images_root:          "../../../data/datasets/SoN/images/"
+  # embeddings_file:      "data/embeddings/ViT-L-14_son_debug_500.pkl" 
+  embeddings_file:      "data/embeddings/ViT-L-14_son_debug_500.pkl"
+
+hyperparams:
+  epochs: 25
+  k_folds: 5
+  check_val_every_n: 1
+  batch_size: 1
+  workers: 8
+  gpu_nums:
+    - 0
+  prompts:
+    - "A photo with visible lightning"
+    - "A photo with visible fog"
+    - "A photo with visible snowflakes"
+    - "A photo with visible wind-blown leaves"
+    - "A photo with visible hailstones"
+    - "A photo with visible sunshine"
+    - "A photo with visible rainbow"
+    - "A photo with visible snow"
+    - "A photo with visible dark clouds"
+    - "A photo with visible frost"
+    - "A photo with visible dangerous weather"
+    - "A photo with visible mist"
+    - "A photo with visible heavy rain"
+    - "A photo with visible sleet"
+    - "A photo with visible gusts of wind"
+    - "A photo of a hillside"
+    - "A photo of a beach"
+    - "A photo of an urban street"
+    - "A photo of a small village"
+    - "A photo of a moorland"
+    - "A photo of a riverbank"
+    - "A photo of a historic building"
+    - "A photo of a town square"
+    - "A photo of a mountain range"
+    - "A photo of a canal"
+    - "A photo of a harbor"
+    - "A photo of a forest"
+    - "A photo of agricultural fields"
+    - "A photo of a rugged coastline"
+    - "A photo of a lake"
+  # coop:
+  #   classes:
+  #     - "beautiful"
+  #     - "ugly"
+  #   class_pos: "end"
+  #   m_words: 16
+  #   n_shots: 1    
+  #   # ctx_init: "A photo of an area that is extremely"
+  #   ctx_init: "A photo of an area that is extremely"
+
+  optim:
+    lr:
+      - 0.0003
+      # - 0.3
+    decay: 0  
+
+transforms:
+  train:
+    to_tensor: true
+
+    size:
+      randomresizedcrop:
+        size: 224
+        scale: [0.6, 0.8]
+    
+    normalize:
+        method: "bicubic"
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.26130258, 0.27577711]
+
+    warps_and_distorts:
+      hflip: 0.5
+
+  val:
+    to_tensor: true
+
+    size:
+      resize:
+        size: 224
+
+    normalize:
+        method: "bicubic"
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.26130258, 0.27577711]
+
+  test:
+    to_tensor: true
+
+    size:
+      resize:
+        size: 224
+
+    normalize:
+        method: "bicubic"
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.26130258, 0.27577711]        

@@ -3,11 +3,13 @@ descriptions:
   exp_family: "son_zero_shot"
   id_col: 'ID'
   splits:
-    - "all"
+    - "train"
+    - "test"
 
 paths:
   labels_file:          "data/son_pts_with_bins.geojson"
   embeddings_root:      "data/embeddings/"
+  splits_root:          "data/splits_son/"  
   images_root:          "../../../data/datasets/SoN/images/"
 
 hyperparams:

@@ -1,8 +1,14 @@
+import pickle
 from PIL import Image
 import csv
 from sklearn.model_selection import KFold
 
 from pathlib import Path
+
+def load_pickle(pickle_file):
+    with open(pickle_file, 'rb') as f:
+        matches = pickle.load(f)
+    return matches
 
 def load_csv(fpath):
     with open(fpath, 'r', newline='') as csv_file:
