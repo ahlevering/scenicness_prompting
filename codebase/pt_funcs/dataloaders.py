@@ -115,7 +115,9 @@ class ClipDataLoader(pl.LightningDataModule):
         batch_out = {}
         for key in ['ids', 'lat', 'lon', 'gt']:
             batch_out[key] = torch.stack([torch.tensor(b[key]) for b in batch])
-        batch_out['img'] = [b['img'] for b in batch] 
+        batch_out['img'] = [b['img'] for b in batch]
+        if type(batch_out['img'][0]) == torch.Tensor:
+            batch_out['img'] = torch.stack(batch_out['img'])
         return batch_out
 
     def train_dataloader(self):

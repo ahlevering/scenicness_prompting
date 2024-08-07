@@ -1,5 +1,5 @@
 descriptions:
-  name: "baseline_full"
+  name: "baseline_full_ViT"
   exp_family: "baselines"
   model_type: "baseline"
   id_col: 'ID'
@@ -12,11 +12,8 @@ descriptions:
 paths:
   labels_file:          "data/son_pts_with_bins.geojson"
   splits_root:          "data/splits_son/"
-  images_root:          "../../../data/datasets/SoN/images/"
-  embeddings_file:      "data/embeddings/ViT-L-14_son.pkl"
-  debug:
-    debug_labels_file:      "data/son_debug_500.geojson"
-    debug_embeds_file:      "data/embeddings/ViT-L-14_son_debug_500.pkl"
+  images_root:          "data/son/SoN/images/"
+  embeddings_file:      False # "data/embeddings/ViT-L-14_son.pkl"
 
 hyperparams:
   use_precalc_embeddings: # Use precomputed image embeddings or images (with transformations)
@@ -24,16 +21,15 @@ hyperparams:
     val: False
     test: False 
   epochs: 25
-  k_folds: 1
   check_val_every_n: 1
-  batch_size: 32
-  workers: 16
+  batch_size: 24
+  workers: 24
   gpu_nums:
     - 0
 
   optim:
-    lr: 0.0001
-    decay: 0
+    lr: 0.00001
+    decay: 0.0001
 
 transforms:
   train:
@@ -42,12 +38,12 @@ transforms:
     size:
       randomresizedcrop:
         size: 224
-        scale: [0.6, 0.8]
+        scale: [0.8, 0.9]
     
     normalize:
         method: "bicubic"
-        mean: [0.485, 0.456, 0.406]
-        std:  [0.229, 0.224, 0.225]
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.426130258578275, 0.27577711]
 
     warps_and_distorts:
       hflip: 0.5
@@ -57,14 +53,14 @@ transforms:
       p: 0.1        
 
     jitter:
-      brightness: 0.03
-      contrast: 0.03
-      saturation: 0.03
-      hue: 0.03
+      brightness: 0.01
+      contrast: 0.01
+      saturation: 0.01
+      hue: 0.01
 
-    randomgrayscale: 0.2
+    randomgrayscale: 0.1
 
-    rotation: 5      
+    rotation: 3      
 
   val:
     to_tensor: true
@@ -75,8 +71,8 @@ transforms:
     
     normalize:
         method: "bicubic"
-        mean: [0.485, 0.456, 0.406]
-        std:  [0.229, 0.224, 0.225]
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.426130258578275, 0.27577711]
 
   test:
     to_tensor: true
@@ -87,5 +83,5 @@ transforms:
     
     normalize:
         method: "bicubic"
-        mean: [0.485, 0.456, 0.406]
-        std:  [0.229, 0.224, 0.225]
+        mean: [0.48145466, 0.4578275, 0.40821073]
+        std:  [0.26862954, 0.426130258578275, 0.27577711]

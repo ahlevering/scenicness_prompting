@@ -16,6 +16,7 @@ paths:
     debug_embeds_file:      "data/embeddings/ViT-L-14_son_debug_500.pkl"
 
 hyperparams:
+  embeddings: "CLIP"
   use_precalc_embeddings: # Use precomputed image embeddings or images (with transformations)
     all: True
   epochs: 25

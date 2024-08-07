@@ -16,15 +16,16 @@ paths:
     debug_embeds_file:      "data/embeddings/ViT-L-14_son_debug_500.pkl"
 
 hyperparams:
+  embeddings: "SigLIP"
   use_precalc_embeddings: # Use precomputed image embeddings or images (with transformations)
-    train: False
+    train: True
     val: True
     test: True 
   epochs: 25
-  k_folds: 5
+  total_samples: 
   check_val_every_n: 1
-  batch_size: 2048
-  workers: 20
+  batch_size: 25
+  workers: 24
   gpu_nums:
     - 0
   prompts:
@@ -37,11 +38,6 @@ hyperparams:
     - "A photo of an area that is extremely"
     - "A photo of a landscape that is"
     - "A photo of a landscape that is extremely"
-
-  optim:
-    lr:
-      - 0.0025
-    decay: 0  
 
 transforms:
   train:

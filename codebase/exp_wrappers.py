@@ -2,14 +2,14 @@ from pathlib import Path
 import torch
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import Trainer
-from pytorch_lightning.loggers.tensorboard import TensorBoardLogger
+from pytorch_lightning.loggers import WandbLogger
 
 from codebase.experiment_tracking.save_metadata import ExperimentOrganizer
 from codebase.experiment_tracking import process_yaml
 from codebase.pt_funcs.dataloaders import ClipDataLoader
-from codebase.pt_funcs.models_few_shot import CLIPMulticlassFewShotNet, SONLinearProbe, CLIPMultiPromptNet
+# from codebase.pt_funcs.models_few_shot import CLIPMulticlassFewShotNet, SONLinearProbe, CLIPMultiPromptNet
 from codebase.pt_funcs.models_zero_shot import MultiClassPrompter, MultiClassContrasts
-from codebase.pt_funcs.models_baseline import ConvNext_regression
+# from codebase.pt_funcs.models_baseline import ConvNext_regression
 
 from codebase.utils.file_utils import load_csv, make_crossval_splits
 
@@ -64,54 +64,47 @@ def setup_trainer(organizer, run_name, exp_params, to_monitor="val_r2", monitor_
                                           mode=monitor_mode)
 
     ##### SETUP TRAINER #####
-    tb_logger = TensorBoardLogger(save_dir=str(organizer.logs_path), name=run_name)
+    logger = WandbLogger(save_dir=str(organizer.logs_path), name=run_name)
     trainer = Trainer(max_epochs=exp_params['hyperparams']['epochs'],
-                      gpus=exp_params['hyperparams']['gpu_nums'],
+                      devices=1,
+                      accelerator="gpu",                      
                       callbacks=[checkpoint_callback],
-                      logger = tb_logger,
+                      logger = logger,
+                      limit_train_batches = 0.5,
                       fast_dev_run=False)
     return trainer
 
 def setup_model(backbone, exp_params):
-    if "baseline"in exp_params['descriptions']['model_type']:
-        net = ConvNext_regression()
-        # for i, param in enumerate(net.basenet.parameters()):
-        #     param.requires_grad_(False)
-    else:
-        ##### SETUP MODEL #####
-        backbone = backbone
-        model_type = exp_params["descriptions"]["model_type"]
+    backbone = backbone
+    model_type = exp_params["descriptions"]["model_type"]
 
-        # Freeze feature extractors
-        if model_type not in ["unfrozen_probe"]:
-            for i, param in enumerate(backbone.parameters()):
-                param.requires_grad_(False)
-        
-        # Load specific model type
-        if model_type == "prompt_learner":
-            net = SONCLIPFewShotNet(backbone, exp_params['hyperparams']['coop'])
-        elif model_type in ["prompt_learner_multiclass"]:
-            net = CLIPMulticlassFewShotNet(backbone, exp_params['hyperparams']['coop'])        
-        elif model_type in ["multiprompt"]:
-            tokenized_prompts = torch.cat([clip.tokenize(p) for p in list(exp_params['hyperparams']['prompts'].keys())]).to(exp_params['hyperparams']['gpu_nums'][0])
-            prompt_values = torch.tensor(list(exp_params['hyperparams']['prompts'].values())).to(exp_params['hyperparams']['gpu_nums'][0])
-            son_rescale = 'son' in exp_params['descriptions']['exp_family']
-            net = CLIPMultiPromptNet(backbone, tokenized_prompts, prompt_values, son_rescale=son_rescale)
-        elif model_type in ["linear_probe", "unfrozen_probe"]:
-            backbone = backbone.visual
-            net = SONLinearProbe(backbone)
-        elif model_type == "frozen_multiprompt": # Technical debt, can be in few-shot, solve differently?
-            # lc_rows = load_csv(exp_params['hyperparams']['lut_file'])
-            # lc_class_names = [x[-1] for x in lc_rows]
-            class_list = list(exp_params['hyperparams']['class_list'].values())
-            prompts = [f"{exp_params['hyperparams']['prompt']} {x}" for x in class_list]
-            net = MultiClassPrompter(backbone, prompts)
-        elif model_type == "contrastive_extractor":
-            prompt_contrasts = exp_params['hyperparams']['prompt_contrast']
-            prompts = exp_params['hyperparams']['prompts']
-            pos_prompts = [f"{prompt_contrasts[0]} {p}." for p in prompts]
-            neg_prompts = [f"{prompt_contrasts[1]} {p}." for p in prompts]
-            net = MultiClassContrasts(backbone, neg_prompts, pos_prompts)
+    # Freeze feature extractors
+    if model_type not in ["unfrozen_probe"]:
+        for i, param in enumerate(backbone.parameters()):
+            param.requires_grad_(False)
+
+    elif model_type in ["prompt_learner_multiclass"]:
+        net = CLIPMulticlassFewShotNet(backbone, exp_params['hyperparams']['coop'])        
+    elif model_type in ["multiprompt"]:
+        tokenized_prompts = torch.cat([clip.tokenize(p) for p in list(exp_params['hyperparams']['prompts'].keys())]).to(exp_params['hyperparams']['gpu_nums'][0])
+        prompt_values = torch.tensor(list(exp_params['hyperparams']['prompts'].values())).to(exp_params['hyperparams']['gpu_nums'][0])
+        son_rescale = 'son' in exp_params['descriptions']['exp_family']
+        net = CLIPMultiPromptNet(backbone, tokenized_prompts, prompt_values, son_rescale=son_rescale)
+    elif model_type in ["linear_probe", "unfrozen_probe"]:
+        backbone = backbone.visual
+        net = SONLinearProbe(backbone)
+    elif model_type == "frozen_multiprompt": # Technical debt, can be in few-shot, solve differently?
+        # lc_rows = load_csv(exp_params['hyperparams']['lut_file'])
+        # lc_class_names = [x[-1] for x in lc_rows]
+        class_list = list(exp_params['hyperparams']['class_list'].values())
+        prompts = [f"{exp_params['hyperparams']['prompt']} {x}" for x in class_list]
+        net = MultiClassPrompter(backbone, prompts)
+    elif model_type == "contrastive_extractor":
+        prompt_contrasts = exp_params['hyperparams']['prompt_contrast']
+        prompts = exp_params['hyperparams']['prompts']
+        pos_prompts = [f"{prompt_contrasts[0]} {p}." for p in prompts]
+        neg_prompts = [f"{prompt_contrasts[1]} {p}." for p in prompts]
+        net = MultiClassContrasts(backbone, neg_prompts, pos_prompts)
     return net
 
 def setup_label_info(keys):

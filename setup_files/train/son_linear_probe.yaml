@@ -13,7 +13,7 @@ paths:
   labels_file:          "data/son_pts_with_bins.geojson"
   splits_root:          "data/splits_son/"
   images_root:          "../../../data/datasets/SoN/images/"
-  embeddings_file:      "data/embeddings/ViT-L-14_son.pkl"
+  embeddings_file:      "data/embeddings/embeds_clip.pkl"
   debug:
     debug_labels_file:      "data/son_debug_500.geojson"
     debug_embeds_file:      "data/embeddings/ViT-L-14_son_debug_500.pkl"

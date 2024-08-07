@@ -1,17 +1,19 @@
 from torch import nn
+import torch
 
 # from timm import create_model # ConvNext
 
-class ConvNext_regression(nn.Module):
-    def __init__(self):
+class RegressionModel(nn.Module):
+    def __init__(self, model):
         super().__init__()
-        self.basenet = create_model("convnext_large", pretrained=True)
-        self.basenet.head.fc = nn.Identity()
-        self.fc = nn.Linear(1536, 1, bias=False)
-        # with torch.no_grad():
-        #     self.fc.bias.fill_(4.5)
+        self.vision_model = model
+        self.fc = nn.Linear(1024, 1, bias=True)
+
+        # Center bias in 1-10 distribution
+        with torch.no_grad():
+            self.fc.bias.fill_(5.5)
 
     def forward(self, x):
-        x = self.basenet(x)
-        scenic = self.fc(x) + 4.43 # Fixed bias, center of dataset
+        x = self.vision_model(x).pooler_output
+        scenic = self.fc(x)
         return scenic

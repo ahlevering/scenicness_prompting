@@ -3,16 +3,17 @@ import yaml
 import torch
 import numpy as np
 from sklearn.model_selection import train_test_split
-from pytorch_lightning.utilities.seed import seed_everything
 
 from codebase.pt_funcs.dataloaders import SoNDataContainer, SONData
-from codebase.pt_funcs.models_few_shot import CLIPFewShotModule
+from codebase.pt_funcs.models_few_shot import BaselineModel
 from codebase.experiment_tracking.run_tracker import VarTrackerRegression
+from transformers import CLIPModel
+from codebase.pt_funcs.models_baseline import RegressionModel
 
 from codebase.exp_wrappers import *
     
 ##### SET GLOBAL OPTIONS ######
-seed_everything(113)
+torch.manual_seed(113)
 np.set_printoptions(suppress=True)
 torch.set_printoptions(sci_mode=False)
 
@@ -27,19 +28,17 @@ data_container = SoNDataContainer(labels_path, embeddings_path)
 train_val_labels, test_labels = train_test_split(data_container.labels['ID'].values, test_size=0.1, random_state=113)
 train_labels, val_labels = train_test_split(train_val_labels, test_size=0.15, random_state=113)
 
-backbone = "ViT-L/14"
 run_name = exp_params['descriptions']['name']
 run_family = exp_params['descriptions']['exp_family']
-k_folds = exp_params['hyperparams']['k_folds']
 
 label_info = setup_label_info(["scenic"])
 
 ##### SET UP TRANSFORMS #####
 transforms = setup_split_transforms(exp_params)
-
-# prompts = exp_params['hyperparams']['prompts']
-# prompts = torch.cat([clip.tokenize(p) for p in prompts])
-# prompts = prompts.to(device=exp_params['hyperparams']['gpu_nums'][0])
+model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
+model = RegressionModel(model.vision_model)
+for _, param in model.vision_model._parameters.items(): 
+    param.requires_grad = False
 
 ############
 # TRAINING #
@@ -55,21 +54,31 @@ organizer = organize_experiment_info(storage_path, setup_file)
 data_module = setup_data_module(SONData, exp_params, data_container, transforms, split_ids=split_ids, single_batch=False)
 
 ##### SETUP MODEL #####
-net = setup_model(backbone, exp_params)
-model = CLIPFewShotModule(organizer.root_path+'outputs/',
-                            net,
+
+model = BaselineModel(organizer.root_path+'outputs/',
+                            model,
                             run_name,
                             label_info,
                             exp_params['hyperparams']['use_precalc_embeddings'],
                             ['test'],
                             VarTrackerRegression)
+model.set_hyperparams(exp_params['hyperparams']['optim']['lr'], exp_params['hyperparams']['optim']['decay'])
 
-state = torch.load("runs/baselines/baseline_full/full_baseline/outputs/states/epoch=01-val_r2=0.8514.ckpt")['state']
-model.load_state_dict(state, strict=True)
+##### SETUP TRAINER #####
+trainer = setup_trainer(organizer, run_name, exp_params, to_monitor="val_r2", monitor_mode='max')
+
+##### FIT MODEL #####
+
+# ############################
+# # RE-TRAIN FROM BEST STATE #
+# ############################
+
+best_path = "runs/baselines/baseline_full_ViT/full_baseline/outputs/states/epoch=01-val_r2=0.8636.ckpt"
+model.load_state_dict(torch.load(best_path)['state_dict'], strict=True)
 
 ############################
 # RE-TRAIN FROM BEST STATE #
 ############################
-tb_logger = TensorBoardLogger(save_dir=organizer.logs_path, name=run_name)
-tester = Trainer(gpus=exp_params['hyperparams']['gpu_nums'], logger=tb_logger)
+tb_logger = WandbLogger(save_dir=organizer.logs_path, name=run_name)
+tester = Trainer(accelerator="cuda", logger=tb_logger)
 tester.test(model, datamodule=data_module)
