@@ -1,0 +1,138 @@
+,user_index,have_been,confidence,values_in_order,prompts_in_order
+0,0,,,8,A quiet path in a forest
+1,1,,,6,Benches and street lamps by the river
+2,2,,,4,agricultural pasture
+3,2,,,6,historic ruin
+4,2,,,6,highland cliffs
+5,2,,,5,rocky outcrops
+6,3,,,2,A busy dense urban area
+7,3,,,6,Rural village with typical red brick houses
+8,3,,,10,Lake in a rugged landscape and a castle
+9,3,,,8,A rocky cliff over the sea with a lighthouse
+10,3,,,5,Suburban area with regular rows of terraced houses
+11,4,,,8,A meadow under a cloudy weather
+12,4,,,10,Cliffs with green meadow by the ocean shore
+13,4,,,7,A city oldtown center with paved streets
+14,4,,,2,A modern neighborhood with skyscrapers
+15,4,,,4,An industrial port by the sea shore
+16,4,,,6,A waterfall with a crystal clear water pound in a forest
+17,4,,,5,A highway running through agricultural lands
+18,4,,,7,A bridge connecting two sides of river banks in a city
+19,5,,,7,Old-fashioned store fronts in a paved street
+20,5,,,4,Modern store fronts
+21,5,,,6,Urban quayside
+22,5,,,8,Thatched roofs country-side house
+23,5,,,1,Nuclear power plant
+24,6,,,8,Traffic on road during rain
+25,6,,,9,A narrow lane with shops lit through glass windows
+26,6,,,9,Large medieval buildings such as castles
+27,7,,,1,urban landscape 
+28,7,,,1,residential landscape 
+29,7,,,8,sea shore 
+30,7,,,5,a castel in the mist 
+31,7,,,8,scottish highlands 
+32,7,,,3,cloudy and rainy landscape 
+33,7,,,8,green hills 
+34,8,No,4.0,3,A street with rows of identical worker houses on both sides
+35,8,No,4.0,6,A suburbian neighbourhood with gardens and trees
+36,8,No,4.0,1,A gas station
+37,8,No,4.0,7,A large historical building in a city center
+38,8,No,4.0,9,Scattered houses in a hilly countryside area
+39,8,No,4.0,10,A cliff over the sea
+40,8,No,4.0,7,A narrow road inside a forest
+41,8,No,4.0,6,A pedestrian street with luxury stores
+42,8,No,4.0,10,"A village with small, ancient houses and bright green grass"
+43,8,No,4.0,8,A field with grazing sheep
+44,8,No,4.0,5,A business center with modern skyscrapers
+45,8,No,4.0,4,A commercial harbour with thousands of piled containers
+46,9,Yes,3.0,6,Curvy road with hedges on both sides
+47,9,Yes,3.0,8,Hilly outlooks over irregular square patches of agricultural land
+48,9,Yes,3.0,9,"Pastures with grazing sheep, even under gray skies"
+49,9,Yes,3.0,7,Picknick table alongside a road with agriculture besides
+50,9,Yes,3.0,1,Harbour with lots of infrastructure
+51,9,Yes,3.0,6,Seaside with average beach but dolphins swimming in the distance
+52,9,Yes,3.0,7,Park in London with lots of people enjoying their weekend
+53,9,Yes,3.0,7,Suburbs of London with big villas and wild gardens with beautiful trees
+54,9,Yes,3.0,1,Long straight roads with low industrial buildings on both sides
+55,9,Yes,3.0,6,Meadows with small yellow flowers crossed by low barbed wire fences and electricity poles
+56,10,Yes,4.0,8,Green hills and farmland
+57,11,Yes,4.0,9,Rocky landscape with grass in Scotland
+58,11,Yes,4.0,8,road with hedges alongside
+59,11,Yes,4.0,2,harbour
+60,11,Yes,4.0,6,houses in Glasgow
+61,12,Yes,4.0,7,"Green, rolling hillsides with trees and bushes"
+62,12,Yes,4.0,9,"Narrow, U-shaped, winding roads lined with bushes"
+63,12,Yes,4.0,10,A lake in the highlands surrounded by mostly green mountains
+64,12,Yes,4.0,8,"Areas of grassland and agricultural fields (farmland), bordered or separated by low stone walls"
+65,12,Yes,4.0,9,Steep and rugged cliffs on the coast
+66,12,Yes,4.0,8,"Medieval castles/fortresses at a lake, along a river or on a mountain top"
+67,12,Yes,4.0,4,"Dark, mostly brown-coloured and monotonous rows of old houses in city suburbs"
+68,12,Yes,4.0,3,Old factories/industrial lots (faded glory)
+69,12,Yes,4.0,1,"Big city harbours, which are often messy and dirty"
+70,13,No,3.0,6,Huge swings/ Oscillators located in an amusement park of a dense urban area
+71,13,No,3.0,8,Seagulls flying around and sitting on stones near shoreline
+72,13,No,3.0,7,A hut located within a dense forest
+73,13,No,3.0,4,A crowded downtown urban center
+74,13,No,3.0,8,Snowy mountains with a river flowing out of it
+75,13,No,3.0,8,A huge plain area with fields and open sky
+76,13,No,3.0,1,An industrial area with a lot of garbage and plumes running of it
+77,14,No,3.0,8,A grassland with beautiful trees and animals 
+78,14,No,3.0,7,A tennis ground 
+79,14,No,3.0,10,A large bridge over the river 
+80,14,No,3.0,9,A grand 5 star hotel on Beach
+81,15,No,2.0,2,"An industrial lot, most probably of some kind of manufacturing plant. I don't see any chimney or something causing massive air pollution. I therefore don't find it too bad of a setting. There is greenery outside so my rating is"
+82,15,No,2.0,8,A river running through a forest evokes calm peaceful emotions. I personally find such scenery beautiful and eye pleasing. My rating is
+83,15,No,2.0,5,Agricultural field with crops is not bad of a scene. The crop is nicely cut and I like the openness with clear blue sky in general. Hence my rating is
+84,15,No,2.0,8,"A lake in the high lands with snow capped mountains. This has good elements of a beautiful scenery. Snow, mountain, lake, etc. However, I would have liked more green lush forrest on that mountain to be particularly pleasing for me. My rating is"
+85,16,No,4.0,8,Westminster Bridge
+86,16,No,4.0,10,Waterfall through mountain forest
+87,17,No,3.0,9,The rolling green hills of the English countryside dotted with sheep
+88,17,No,3.0,8,The rugged coastline of Cornwall with its cliffs and beaches
+89,17,No,3.0,7,The bustling streets and historic buildings of London
+90,17,No,3.0,8,The mystical and ancient stone circle of Stonehenge
+91,17,No,3.0,10,The serene beauty of the Lake District with its mountains and lakes
+92,17,No,3.0,9,The historic and charming town of Bath with its Georgian architecture
+93,17,No,3.0,6,The urban landscape of Manchester with its vibrant street art
+94,17,No,3.0,10,The majestic Scottish Highlands with its rugged terrain and castles
+95,17,No,3.0,9,The idyllic and quaint villages of the Cotswolds
+96,17,No,3.0,7,The modern and eclectic cityscape of Glasgow
+97,17,No,3.0,10,The dramatic and stunning Giant's Causeway in Northern Ireland
+98,18,Yes,3.0,7,A lake in the highlands surrounded by hills
+99,19,Yes,4.0,10,"Rolling hills, some trees, low hedgerows, a village with a church tower in the distance"
+100,19,Yes,4.0,10,A coastal village with a small harbour
+101,19,Yes,4.0,8,Industrial city with newly made parks and coffeebars
+102,20,No,3.0,7,Cliffs at the shoreline
+103,20,No,3.0,5,Castle on top of a hill
+104,20,No,3.0,8,Small village with old charming farm houses
+105,20,No,3.0,1,Highway along fields
+106,20,No,3.0,2,Residential area filled with concrete buildings
+107,20,No,3.0,5,Dunes with small vegetation
+108,20,No,3.0,7,Sandy beaches
+109,21,Yes,4.0,7,An urban environment with multiple modes of transportation and several pedestrians
+110,22,No,3.0,8,A snowy and icy river running through a forest
+111,22,No,3.0,2,Suburbs of big cities
+112,22,No,3.0,1,Industrial lot
+113,22,No,3.0,9,A sunset on the sea
+114,22,No,3.0,8,A forest at sunrise
+115,22,No,3.0,8,Cliffs at sea level
+116,22,No,3.0,1,Highways
+117,22,No,3.0,6,Small village in the highlands
+118,23,Yes,3.0,8,A flock of sheep on a hill
+119,24,Yes,3.0,7,A fish and chips stall near the coast
+120,25,Yes,3.0,8,An ancient graveyard near a church in the countryside
+121,26,Yes,4.0,6,A dirt road through a meadow
+122,26,Yes,4.0,6,A dirt road trough a grass field
+123,26,Yes,4.0,5,A Victorian building along an asphalt road
+124,26,Yes,4.0,5,An urban Victorian building
+125,26,Yes,4.0,8,A rugged cliff facing a sea
+126,26,Yes,4.0,8,A high cliff near an ocean
+127,26,Yes,4.0,8,A grassy cliff near a rough sea
+128,26,Yes,4.0,1,A wide motor way
+129,26,Yes,4.0,1,A busy high way
+130,26,Yes,4.0,1,A free way with heavy traffic
+131,26,Yes,4.0,7,A grass field with an old wall
+132,26,Yes,4.0,7,A meadow with a stone wall
+133,26,Yes,4.0,10,A lake with misty mountains
+134,26,Yes,4.0,10,A loch with mountains in a forest
+135,26,Yes,4.0,9,A moor with low vegetation in the mountains
+136,26,Yes,4.0,9,A bog with grass surrounded by a mountain
