@@ -1,6 +1,9 @@
 # About
 This paper contains Scripts and data accompanying our publication titled *Prompt-guided and multimodal landscape scenicness
-assessments with vision-language models*. We tested the use of vision-language models to provide scalable landscape assessments, as well as landscape assessments using only text as inputs. Please find the paper here: coming soon.
+assessments with vision-language models*. We tested the use of vision-language models to provide scalable landscape assessments, as well as landscape assessments using only text as inputs. Please find the paper here: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0307083
+
+## Updates
+**30/09 - This repo will be updated soon to provide better boilerplate code for LPE, so that it is easier to re-use for new research.**
 
 ### Data
 Our dataset of prompts can be found in the following Zenodo repository: https://zenodo.org/records/12653736. Notably, the pre-computed embeddings can be downloaded from here. Alternatively, the ScenicOrNot image dataset can be constructed by running `preprocess/download_son_images.py`, although this will take a while, strains Geograph servers, and is not recommended if it can be avoided. A snapshot of the images will be provided here soon. For those interested in reproducing the exact results starting from the images (because some images have been taken offline), please feel free to contact the authors directly.
