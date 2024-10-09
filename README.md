@@ -7,8 +7,8 @@ assessments with vision-language models*. We tested the use of vision-language m
 * Landscape Prompt Ensembling (coming soon)
 
 ## Updates
-**30/09 - This repo will be updated soon to provide better boilerplate code for LPE, so that it is easier to re-use for new research.**
-**09/10 - Added example notebook for making personalized maps. Will refactor LPE code and add a notebook example soon.**
+* 30/09 - This repo will be updated soon to provide better boilerplate code for LPE, so that it is easier to re-use for new research.
+* 09/10 - Added example notebook for making personalized maps. Will refactor LPE code and add a notebook example soon.
 
 ### Data
 Our dataset of prompts can be found in the following Zenodo repository: https://zenodo.org/records/12653736. Notably, the pre-computed embeddings can be downloaded from here. Alternatively, the ScenicOrNot image dataset can be constructed by running `preprocess/download_son_images.py`, although this will take a while, strains Geograph servers, and is not recommended if it can be avoided. A snapshot of the images will be provided here soon. For those interested in reproducing the exact results starting from the images (because some images have been taken offline), please feel free to contact the authors directly.
